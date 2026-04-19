@@ -219,6 +219,13 @@ export default function RoundOverScreen() {
           bonusCoins={round.winner_id === player.id ? round.winner_bonus_coins : 0}
           winnerScore={winnerScore}
           loserScore={loserScore}
+          perspective={
+            round.winner_id == null
+              ? 'tied'
+              : round.winner_id === player.id
+              ? 'winner'
+              : 'loser'
+          }
           onComplete={onCinematicDone}
         />
       )}

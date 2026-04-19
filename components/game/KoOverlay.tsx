@@ -11,6 +11,9 @@ type Props = {
   bonusCoins: number;
   winnerScore: number;
   loserScore: number;
+  /** Framing of the stamp. Winner sees "FLAWLESS VICTORY", loser sees the
+   * matching defeat phrasing. Tied ignores this. */
+  perspective: 'winner' | 'loser' | 'tied';
   onComplete: () => void;
 };
 
@@ -37,8 +40,8 @@ export function KoOverlay(props: Props) {
     };
   }, []);
 
-  const stamp = stampLabel(props.tier);
-  const stampColor = stampColorFor(props.tier);
+  const stamp = stampLabel(props.tier, props.perspective);
+  const stampColor = stampColorFor(props.tier, props.perspective);
 
   return (
     <Pressable
@@ -155,22 +158,43 @@ export function KoOverlay(props: Props) {
   );
 }
 
-function stampLabel(tier: TributeTier | null): string {
+function stampLabel(
+  tier: TributeTier | null,
+  perspective: 'winner' | 'loser' | 'tied'
+): string {
+  if (perspective === 'tied' || !tier) return 'ROUND TIED';
+  if (perspective === 'winner') {
+    switch (tier) {
+      case 'paper_cut':
+        return 'K . O .';
+      case 'knockout':
+        return 'KNOCKOUT!';
+      case 'total_carnage':
+        return 'TOTAL CARNAGE!!';
+      case 'flawless':
+        return 'FLAWLESS VICTORY!!!';
+    }
+  }
+  // Loser POV — reframes the stamp as defeat, not a celebration.
   switch (tier) {
     case 'paper_cut':
-      return 'K . O .';
+      return 'YOU LOST.';
     case 'knockout':
-      return 'KNOCKOUT!';
+      return 'KNOCKED OUT!';
     case 'total_carnage':
-      return 'TOTAL CARNAGE!!';
+      return 'BODIED!!';
     case 'flawless':
-      return 'FLAWLESS VICTORY!!!';
-    default:
-      return 'ROUND TIED';
+      return 'FLAWLESS DEFEAT!!!';
   }
 }
 
-function stampColorFor(tier: TributeTier | null): string {
+function stampColorFor(
+  tier: TributeTier | null,
+  perspective: 'winner' | 'loser' | 'tied'
+): string {
+  if (perspective === 'tied' || !tier) return '#00DDFF';
+  // Loser always sees red — doom framing.
+  if (perspective === 'loser') return '#FF3333';
   switch (tier) {
     case 'flawless':
       return '#9EFA00';
@@ -180,7 +204,5 @@ function stampColorFor(tier: TributeTier | null): string {
       return '#FFCC00';
     case 'paper_cut':
       return '#FFB8DE';
-    default:
-      return '#00DDFF';
   }
 }
