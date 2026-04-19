@@ -18,7 +18,7 @@ import { useSession } from '@/lib/store';
 import { supabase } from '@/lib/supabase';
 import { clearPushToken, registerPushToken } from '@/lib/notifications';
 import { forceCloseCurrentRound } from '@/lib/tribute';
-import type { Player } from '@/lib/types';
+import type { Player, Round } from '@/lib/types';
 
 /**
  * Pause-menu modal presented from Home. Combines the action feed (history)
@@ -90,6 +90,10 @@ export default function MenuScreen() {
   }
 
   async function handleForceClose() {
+    if (!couple || !player) {
+      Alert.alert('Force close failed', 'Not paired yet.');
+      return;
+    }
     setCloseBusy(true);
     const { ok, error } = await forceCloseCurrentRound();
     setCloseBusy(false);
@@ -97,9 +101,33 @@ export default function MenuScreen() {
       Alert.alert('Force close failed', error ?? 'Unknown error.');
       return;
     }
-    // Round is closed. Close the Menu modal so the root-layout redirect
-    // picks up the unresolved round and pushes us into the KO cinematic.
-    router.back();
+
+    // Find the most recent closed round that's still unresolved FOR THIS PLAYER
+    // and navigate straight to round-over for it. We don't rely on the root
+    // layout's redirect effect because its deps rarely change after force-close.
+    const { data: closedRows } = await supabase
+      .from('rounds')
+      .select('*')
+      .eq('couple_id', couple.id)
+      .eq('status', 'closed')
+      .order('number', { ascending: false })
+      .limit(5);
+    const closed = (closedRows ?? []) as Round[];
+
+    const target = closed.find((r) => {
+      if (r.winner_id === player.id) {
+        return r.tribute_shop_item_id == null || r.tribute_paid_at == null;
+      }
+      // loser / tied path — redirect unconditionally; the screen handles ack
+      return true;
+    });
+
+    if (!target) {
+      Alert.alert('Force close', 'Round closed but nothing unresolved for you.');
+      return;
+    }
+
+    router.replace({ pathname: '/(round)/over', params: { roundId: target.id } });
   }
 
   return (
