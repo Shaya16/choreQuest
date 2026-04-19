@@ -626,7 +626,7 @@ export default function HomeScreen() {
                 {/* P1 fighter wrapper — DebtBadge layers above when applicable.
                     `alignSelf: 'stretch'` is required so FighterCard's flex:1
                     still fills the parent column width. */}
-                <View style={{ position: 'relative', alignSelf: 'stretch' }}>
+                <View style={{ flex: 1, position: 'relative' }}>
                   <FighterCard
                     player={p1}
                     score={p1Score}
@@ -656,7 +656,7 @@ export default function HomeScreen() {
               </View>
               <View style={{ flex: 5, justifyContent: 'flex-end' }}>
                 {/* P2 fighter wrapper — same layout fix as P1 above. */}
-                <View style={{ position: 'relative', alignSelf: 'stretch' }}>
+                <View style={{ flex: 1, position: 'relative' }}>
                   <FighterCard
                     player={p2}
                     score={p2Score}
