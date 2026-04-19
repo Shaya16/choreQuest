@@ -102,9 +102,13 @@ export type Round = {
   p2_total: number | null;
   margin: number | null;
   winner_id: string | null;
+  loser_id: string | null;
+  winner_bonus_coins: number;
   tribute_tier: TributeTier | null;
   tribute_selected: string | null;
+  tribute_shop_item_id: string | null;
   tribute_paid: boolean;
+  tribute_paid_at: string | null;
   crowns_json: Partial<Record<World, string>> | null;
   mvp_title: string | null;
   highlight_photo_url: string | null;
