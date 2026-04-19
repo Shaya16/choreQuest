@@ -15,6 +15,8 @@ import { loadActivities } from '@/lib/logger';
 import { preloadAssets } from '@/lib/preload';
 import { registerPushToken } from '@/lib/notifications';
 import { loadCouplePlayers } from '@/lib/round';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { ackKeyForRound, loadUnresolvedClosedRounds } from '@/lib/tribute';
 import type { Player, Couple, Activity, Log } from '@/lib/types';
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
@@ -146,6 +148,49 @@ export default function RootLayout() {
     if (group !== '(tabs)') router.replace('/(tabs)');
   }, [loading, fontsLoaded, fontError, session, couple, segments, router]);
 
+  // Round-over redirect: if there's a closed round whose flow is unresolved
+  // for this player, force the round-over screen. Walks oldest-first via
+  // `loadUnresolvedClosedRounds` ordering by round.number ascending.
+  useEffect(() => {
+    if (loading || !session || !couple || !player) return;
+    if (!fontsLoaded && !fontError) return;
+
+    let cancelled = false;
+    (async () => {
+      const rounds = await loadUnresolvedClosedRounds(couple.id, player.id);
+      for (const r of rounds) {
+        // Winner path: unresolved if no tribute picked OR not yet paid.
+        if (r.winner_id === player.id) {
+          if (r.tribute_shop_item_id == null || r.tribute_paid_at == null) {
+            if (cancelled) return;
+            router.replace({
+              pathname: '/(round)/over',
+              params: { roundId: r.id },
+            });
+            return;
+          }
+          // Resolved for winner — keep scanning later rounds.
+          continue;
+        }
+        // Loser / tied participant path: unresolved if not yet locally ack'd.
+        const ack = await AsyncStorage.getItem(
+          ackKeyForRound(player.id, r.id)
+        );
+        if (!ack) {
+          if (cancelled) return;
+          router.replace({
+            pathname: '/(round)/over',
+            params: { roundId: r.id },
+          });
+          return;
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [loading, fontsLoaded, fontError, session, couple?.id, player?.id, router]);
+
   useEffect(() => {
     if (fontsLoaded || fontError) SplashScreen.hideAsync().catch(() => {});
   }, [fontsLoaded, fontError]);
@@ -248,6 +293,13 @@ export default function RootLayout() {
       <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: '#000' } }}>
         <Stack.Screen name="(auth)" />
         <Stack.Screen name="(tabs)" />
+        <Stack.Screen
+          name="(round)"
+          options={{
+            presentation: 'fullScreenModal',
+            animation: 'fade',
+          }}
+        />
       </Stack>
       <StrikeBanner
         event={bannerEvent}
