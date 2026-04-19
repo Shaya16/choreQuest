@@ -1,0 +1,12 @@
+project_id = "chore-quest"
+
+# Edge functions that need to be callable without a client JWT.
+# round-rollover-tick is invoked by:
+#   1. pg_cron (uses service role key — always accepted)
+#   2. Client's dev FORCE CLOSE button (uses publishable key — ES256 signed,
+#      currently rejected by the function gateway's JWT verifier)
+# Disabling JWT verification is safe here: the function only closes rounds
+# whose end_date has already passed (idempotent + time-gated), and uses the
+# service-role `admin` client internally for all writes.
+[functions.round-rollover-tick]
+verify_jwt = false
