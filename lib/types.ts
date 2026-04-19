@@ -1,0 +1,253 @@
+// =============================================================================
+// Chore Quest — TypeScript types mirroring the Supabase schema (migration 0001)
+// =============================================================================
+// Hand-rolled for Phase 1. When the Supabase CLI is wired up, these should be
+// replaced with auto-generated types via:
+//   npx supabase gen types typescript --project-id <ref> > lib/types.generated.ts
+// =============================================================================
+// IMPORTANT: these are `type` aliases, not `interface`. Supabase JS 2.100+
+// constrains Row/Insert/Update to `Record<string, unknown>`, and that check
+// only passes for type aliases — interfaces don't structurally conform.
+// =============================================================================
+
+export type World =
+  | 'gym'
+  | 'aerobics'
+  | 'university'
+  | 'diet'
+  | 'household'
+  | 'reading';
+
+export type ArcadeClass =
+  | 'gym_fighter'
+  | 'vibe_queen'
+  | 'sweepman'
+  | 'chef_kong'
+  | 'nerd_tron'
+  | 'shay'
+  | 'kessy';
+
+export type HouseholdTier = 'daily' | 'weekly' | 'monthly';
+export type ShopCategory = 'pampering' | 'meals' | 'chore_relief' | 'power' | 'wildcard';
+export type RoundStatus = 'active' | 'closed';
+export type TributeTier = 'paper_cut' | 'knockout' | 'total_carnage' | 'flawless';
+export type JackpotStatus = 'active' | 'achieved' | 'celebrated' | 'locked';
+export type JackpotPriority = 'next_up' | 'queue' | 'someday';
+export type PurchaseStatus = 'pending' | 'redeemed' | 'cancelled';
+
+export type Couple = {
+  id: string;
+  invite_code: string;
+  couple_level: number;
+  couple_xp: number;
+  current_season_id: string | null;
+  paired_at: string;
+  created_at: string;
+};
+
+export type Player = {
+  id: string;
+  user_id: string;
+  couple_id: string | null;
+  display_name: string;
+  arcade_class: ArcadeClass;
+  avatar_sprite: string;
+  mult_gym: number;
+  mult_aerobics: number;
+  mult_university: number;
+  mult_diet: number;
+  mult_household: number;
+  mult_reading: number;
+  current_combo_days: number;
+  combo_multiplier: number;
+  freezes_remaining: number;
+  last_log_date: string | null;
+  lifetime_score: number;
+  personal_wallet: number;
+  lifetime_xp: number;
+  player_level: number;
+  current_title: string;
+  crowns: Record<World, number>;
+  belts: number;
+  instant_win_tokens: number;
+  upgrades: string[];
+  created_at: string;
+};
+
+export type Activity = {
+  id: string;
+  world: World;
+  tier: HouseholdTier | null;
+  name: string;
+  description: string | null;
+  base_value: number;
+  bonus: number;
+  daily_cap: number;
+  requires_photo: boolean;
+  icon_sprite: string | null;
+  is_custom: boolean;
+  created_by_couple_id: string | null;
+  is_active: boolean;
+};
+
+export type Round = {
+  id: string;
+  couple_id: string;
+  number: number;
+  start_date: string;
+  end_date: string;
+  status: RoundStatus;
+  p1_total: number | null;
+  p2_total: number | null;
+  margin: number | null;
+  winner_id: string | null;
+  tribute_tier: TributeTier | null;
+  tribute_selected: string | null;
+  tribute_paid: boolean;
+  crowns_json: Partial<Record<World, string>> | null;
+  mvp_title: string | null;
+  highlight_photo_url: string | null;
+};
+
+export type Log = {
+  id: string;
+  player_id: string;
+  activity_id: string;
+  round_id: string;
+  base_value: number;
+  player_multiplier: number;
+  combo_multiplier: number;
+  crit_multiplier: number;
+  daily_bonus_multiplier: number;
+  weekly_hero_multiplier: number;
+  season_multiplier: number;
+  coins_earned: number;
+  xp_earned: number;
+  jackpot_share: number;
+  personal_share: number;
+  evidence_url: string | null;
+  notes: string | null;
+  logged_at: string;
+};
+
+export type ShopItem = {
+  id: string;
+  name: string;
+  description: string | null;
+  cost: number;
+  category: ShopCategory;
+  icon_sprite: string | null;
+  is_active: boolean;
+};
+
+export type Purchase = {
+  id: string;
+  shop_item_id: string;
+  buyer_id: string;
+  target_id: string;
+  purchased_at: string;
+  redeemed_at: string | null;
+  status: PurchaseStatus;
+};
+
+export type JackpotGoal = {
+  id: string;
+  couple_id: string;
+  name: string;
+  description: string | null;
+  target_coins: number;
+  current_coins: number;
+  status: JackpotStatus;
+  priority: JackpotPriority;
+  is_visible: boolean;
+  season_id: string | null;
+  icon_sprite: string | null;
+  achieved_on: string | null;
+};
+
+// -----------------------------------------------------------------------------
+// Supabase Database shape. Tables require Row/Insert/Update/Relationships, and
+// the schema requires Views/Functions/Enums/CompositeTypes (empty is fine).
+// -----------------------------------------------------------------------------
+
+type NoRelationships = [];
+
+export type Database = {
+  public: {
+    Tables: {
+      couples: {
+        Row: Couple;
+        Insert: Partial<Couple> & Pick<Couple, 'invite_code'>;
+        Update: Partial<Couple>;
+        Relationships: NoRelationships;
+      };
+      players: {
+        Row: Player;
+        Insert: Partial<Player> &
+          Pick<Player, 'user_id' | 'display_name' | 'arcade_class'>;
+        Update: Partial<Player>;
+        Relationships: NoRelationships;
+      };
+      activities: {
+        Row: Activity;
+        Insert: Partial<Activity> & Pick<Activity, 'world' | 'name' | 'base_value'>;
+        Update: Partial<Activity>;
+        Relationships: NoRelationships;
+      };
+      rounds: {
+        Row: Round;
+        Insert: Partial<Round> &
+          Pick<Round, 'couple_id' | 'number' | 'start_date' | 'end_date'>;
+        Update: Partial<Round>;
+        Relationships: NoRelationships;
+      };
+      logs: {
+        Row: Log;
+        Insert: Omit<Log, 'id' | 'logged_at'> & { id?: string; logged_at?: string };
+        Update: Partial<Log>;
+        Relationships: NoRelationships;
+      };
+      shop_items: {
+        Row: ShopItem;
+        Insert: Partial<ShopItem> & Pick<ShopItem, 'name' | 'cost' | 'category'>;
+        Update: Partial<ShopItem>;
+        Relationships: NoRelationships;
+      };
+      purchases: {
+        Row: Purchase;
+        Insert: Partial<Purchase> &
+          Pick<Purchase, 'shop_item_id' | 'buyer_id' | 'target_id'>;
+        Update: Partial<Purchase>;
+        Relationships: NoRelationships;
+      };
+      jackpot_goals: {
+        Row: JackpotGoal;
+        Insert: Partial<JackpotGoal> &
+          Pick<JackpotGoal, 'couple_id' | 'name' | 'target_coins'>;
+        Update: Partial<JackpotGoal>;
+        Relationships: NoRelationships;
+      };
+    };
+    Views: Record<string, never>;
+    Functions: {
+      create_couple_and_join: {
+        Args: { p_invite_code: string };
+        Returns: Couple;
+      };
+      join_couple_by_code: {
+        Args: { p_invite_code: string };
+        Returns: Couple;
+      };
+      dev_summon_stub_partner: {
+        Args: { p_display_name: string; p_arcade_class: ArcadeClass };
+        Returns: Player;
+      };
+      dev_banish_stub_partner: {
+        Args: Record<string, never>;
+        Returns: number;
+      };
+    };
+    Enums: Record<string, never>;
+    CompositeTypes: Record<string, never>;
+  };
+};
