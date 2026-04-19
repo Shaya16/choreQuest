@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Alert, ScrollView, Text, View } from 'react-native';
+import { Alert, Pressable, ScrollView, Text, View } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Haptics from 'expo-haptics';
@@ -18,7 +18,14 @@ import {
 } from '@/lib/tribute';
 import type { Round, ShopItem } from '@/lib/types';
 
-type Mode = 'cinematic' | 'pick' | 'await' | 'collect' | 'tied' | 'acknowledge';
+type Mode =
+  | 'cinematic'
+  | 'pick'
+  | 'await'
+  | 'collect'
+  | 'tied'
+  | 'acknowledge'
+  | 'inactive';
 
 export default function RoundOverScreen() {
   const params = useLocalSearchParams<{ roundId?: string }>();
@@ -57,6 +64,15 @@ export default function RoundOverScreen() {
           return;
         }
         setRound(r);
+
+        // Inactive rounds (nobody hit the 50-point threshold) have no
+        // cinematic, no winner, no tribute. Jump straight to the ACK screen.
+        // This check runs BEFORE the cinematic-seen branch so we never even
+        // flash the KoOverlay for these rounds.
+        if (!cancelled && r.status === 'inactive') {
+          setMode('inactive');
+          return;
+        }
 
         // If the user has already seen the cinematic for this round (they're
         // re-entering via a Control Panel tile), skip straight to the
@@ -502,6 +518,77 @@ export default function RoundOverScreen() {
           >
             ▶ CONTINUE
           </Text>
+        </View>
+      )}
+
+      {mode === 'inactive' && (
+        <View
+          style={{
+            flex: 1,
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: 24,
+            backgroundColor: '#000000',
+          }}
+        >
+          <Text
+            style={{
+              fontFamily: 'PressStart2P',
+              color: '#FFCC00',
+              fontSize: 18,
+              letterSpacing: 2,
+              textAlign: 'center',
+            }}
+          >
+            ROUND INACTIVE
+          </Text>
+          <Text
+            style={{
+              fontFamily: 'Silkscreen',
+              color: '#8A8A8A',
+              fontSize: 12,
+              marginTop: 16,
+              textAlign: 'center',
+            }}
+          >
+            NOBODY HIT 50 CHORE POINTS THIS WEEK.
+          </Text>
+          <Text
+            style={{
+              fontFamily: 'Silkscreen',
+              color: '#8A8A8A',
+              fontSize: 11,
+              marginTop: 8,
+              textAlign: 'center',
+              opacity: 0.75,
+            }}
+          >
+            No tribute. No winner bonus. Next round starts fresh.
+          </Text>
+          <Pressable onPress={handleAcknowledge} style={{ marginTop: 40 }}>
+            {({ pressed }) => (
+              <View
+                style={{
+                  borderWidth: 3,
+                  borderColor: '#FFCC00',
+                  backgroundColor: pressed ? '#FFCC00' : '#000000',
+                  paddingHorizontal: 24,
+                  paddingVertical: 12,
+                }}
+              >
+                <Text
+                  style={{
+                    fontFamily: 'PressStart2P',
+                    color: pressed ? '#000000' : '#FFCC00',
+                    fontSize: 12,
+                    letterSpacing: 2,
+                  }}
+                >
+                  ACKNOWLEDGE
+                </Text>
+              </View>
+            )}
+          </Pressable>
         </View>
       )}
     </View>

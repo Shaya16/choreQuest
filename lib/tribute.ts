@@ -102,9 +102,9 @@ export async function markTributePaid(roundId: string): Promise<void> {
 }
 
 /**
- * Closed rounds for this player (winner OR loser OR tied participant) where
- * the player has not yet finished their step. Used by the home redirect to
- * pop the round-over screen.
+ * Closed or inactive rounds for this player (winner OR loser OR tied
+ * participant OR inactive participant) where the player has not yet finished
+ * their step. Used by the home redirect to pop the round-over screen.
  *
  * Resolution rules per role:
  *   - Winner of a decisive round: needs to pick a tribute, then needs to
@@ -112,10 +112,12 @@ export async function markTributePaid(roundId: string): Promise<void> {
  *   - Loser of a decisive round: needs to acknowledge the cinematic. We
  *     store ack as a flag in AsyncStorage; see ackKeyForRound below.
  *   - Tied participant: needs to acknowledge once.
+ *   - Inactive-round participant: needs to acknowledge once (no tribute
+ *     fires because nobody crossed the 50-point threshold).
  *
  * For simplicity, "unresolved for me" returns true if:
  *   * I'm the winner AND (tribute_shop_item_id IS NULL OR tribute_paid_at IS NULL)
- *   * I'm the loser/tied AND I haven't ack'd this round id locally
+ *   * I'm the loser/tied/inactive AND I haven't ack'd this round id locally
  */
 export async function loadUnresolvedClosedRounds(
   coupleId: string,
@@ -125,7 +127,7 @@ export async function loadUnresolvedClosedRounds(
     .from('rounds')
     .select('*')
     .eq('couple_id', coupleId)
-    .eq('status', 'closed')
+    .in('status', ['closed', 'inactive'])
     .order('number', { ascending: true });
   return (data ?? []) as Round[];
 }
