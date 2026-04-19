@@ -16,7 +16,11 @@ import { preloadAssets } from '@/lib/preload';
 import { registerPushToken } from '@/lib/notifications';
 import { loadCouplePlayers } from '@/lib/round';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { cinematicSeenKey, loadUnresolvedClosedRounds } from '@/lib/tribute';
+import {
+  ackKeyForRound,
+  cinematicSeenKey,
+  loadUnresolvedClosedRounds,
+} from '@/lib/tribute';
 import type { Player, Couple, Activity, Log } from '@/lib/types';
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
@@ -173,11 +177,16 @@ export default function RootLayout() {
           // The auto-redirect only fires once per round per player — to force
           // them through the KO cinematic. After that, the tribute/ack
           // surfaces on home take over and the user controls when to re-enter.
-          const seen = await AsyncStorage.getItem(
-            cinematicSeenKey(player.id, r.id)
-          );
+          //
+          // We check BOTH cinematicSeenKey (the new universal flag) and
+          // ackKey (the older loser/tied ack). Rounds dismissed before the
+          // cinematic flag existed only have the ack — treat those as seen.
+          const [seen, ack] = await Promise.all([
+            AsyncStorage.getItem(cinematicSeenKey(player.id, r.id)),
+            AsyncStorage.getItem(ackKeyForRound(player.id, r.id)),
+          ]);
           if (cancelled) return;
-          if (seen) continue;
+          if (seen || ack) continue;
 
           // Decide whether there's a cinematic to show at all for this round:
           //   - Tied rounds: yes (tied overlay)
