@@ -33,6 +33,7 @@ export type ComputedLogValues = {
   xp_earned: number;
   jackpot_share: number;
   personal_share: number;
+  round_value_earned: number;
 };
 
 /**
@@ -53,17 +54,13 @@ export function computeLogValues(
   const weeklyHeroMult = 1;
   const seasonMult = 1;
 
-  const coins = Math.max(
+  const multTotal =
+    playerMult * comboMult * critMult * dailyBonusMult * weeklyHeroMult * seasonMult;
+
+  const coins = Math.max(0, Math.floor(rawBase * multTotal));
+  const roundValue = Math.max(
     0,
-    Math.floor(
-      rawBase *
-        playerMult *
-        comboMult *
-        critMult *
-        dailyBonusMult *
-        weeklyHeroMult *
-        seasonMult
-    )
+    Math.floor((activity.round_value ?? 0) * multTotal)
   );
 
   return {
@@ -78,6 +75,7 @@ export function computeLogValues(
     xp_earned: rawBase,
     jackpot_share: 0,
     personal_share: coins,
+    round_value_earned: roundValue,
   };
 }
 
@@ -115,6 +113,7 @@ export async function loadActivities(): Promise<Activity[]> {
     .from('activities')
     .select('*')
     .eq('is_active', true)
+    .is('archived_at', null)
     .order('world', { ascending: true })
     .order('tier', { ascending: true, nullsFirst: true })
     .order('base_value', { ascending: false });

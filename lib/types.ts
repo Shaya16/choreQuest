@@ -29,7 +29,7 @@ export type ArcadeClass =
 
 export type HouseholdTier = 'daily' | 'weekly' | 'monthly';
 export type ShopCategory = 'pampering' | 'meals' | 'chore_relief' | 'power' | 'wildcard';
-export type RoundStatus = 'active' | 'closed';
+export type RoundStatus = 'active' | 'closed' | 'inactive';
 export type TributeTier = 'paper_cut' | 'knockout' | 'total_carnage' | 'flawless';
 export type JackpotStatus = 'active' | 'achieved' | 'celebrated' | 'locked';
 export type JackpotPriority = 'next_up' | 'queue' | 'someday';
@@ -93,6 +93,8 @@ export type Activity = {
   is_custom: boolean;
   created_by_couple_id: string | null;
   is_active: boolean;
+  round_value: number;
+  archived_at: string | null;
 };
 
 export type Round = {
@@ -134,6 +136,7 @@ export type Log = {
   xp_earned: number;
   jackpot_share: number;
   personal_share: number;
+  round_value_earned: number;
   evidence_url: string | null;
   notes: string | null;
   logged_at: string;
