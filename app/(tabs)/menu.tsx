@@ -17,6 +17,7 @@ import { useRoundView } from '@/lib/useRoundView';
 import { useSession } from '@/lib/store';
 import { supabase } from '@/lib/supabase';
 import { clearPushToken, registerPushToken } from '@/lib/notifications';
+import { forceCloseCurrentRound } from '@/lib/tribute';
 import type { Player } from '@/lib/types';
 
 /**
@@ -31,6 +32,7 @@ export default function MenuScreen() {
 
   const [stubBusy, setStubBusy] = useState(false);
   const [stubInfo, setStubInfo] = useState<string | null>(null);
+  const [closeBusy, setCloseBusy] = useState(false);
 
   const [notifEnabled, setNotifEnabled] = useState<boolean>(!!player?.expo_push_token);
 
@@ -85,6 +87,20 @@ export default function MenuScreen() {
     }
     const removed = typeof data === 'number' ? data : 0;
     setStubInfo(removed ? `Banished ${removed} stub.` : 'No stub to banish.');
+  }
+
+  async function handleForceClose() {
+    setCloseBusy(true);
+    const { ok, error } = await forceCloseCurrentRound();
+    setCloseBusy(false);
+    if (!ok) {
+      Alert.alert('Force close failed', error ?? 'Unknown error.');
+      return;
+    }
+    Alert.alert(
+      'Round backdated',
+      'End_date set to yesterday. The next pg_cron tick (within 10 min) will close it. Or invoke round-rollover-tick directly via the Supabase dashboard.'
+    );
   }
 
   return (
@@ -306,6 +322,28 @@ export default function MenuScreen() {
               {stubInfo}
             </Text>
           )}
+          <View style={{ height: 8 }} />
+          <Pressable
+            onPress={handleForceClose}
+            disabled={closeBusy}
+            style={{
+              borderWidth: 2,
+              borderColor: '#FF3333',
+              padding: 12,
+              opacity: closeBusy ? 0.5 : 1,
+            }}
+          >
+            <Text
+              style={{
+                fontFamily: 'PressStart2P',
+                color: '#FF3333',
+                fontSize: 9,
+                textAlign: 'center',
+              }}
+            >
+              🛠 FORCE CLOSE ROUND
+            </Text>
+          </Pressable>
         </View>
 
         {/* ============ SIGN OUT ============ */}
