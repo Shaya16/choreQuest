@@ -15,7 +15,10 @@ export type TriggerType =
   | 'round_lost'
   | 'round_tied'
   | 'tribute_picked'
-  | 'tribute_paid';
+  | 'tribute_paid'
+  | 'purchase_made'
+  | 'redemption_requested'
+  | 'delivery_confirmed';
 
 export const VARIANTS: Record<TriggerType, string[]> = {
   lead_flip: [
@@ -83,6 +86,24 @@ export const VARIANTS: Record<TriggerType, string[]> = {
     "tribute settled: {{tribute}}. respect. next round.",
     "✓ {{partner}} got their {{tribute}}. you're square.",
     "paid in full: {{tribute}}. on to the next.",
+  ],
+  purchase_made: [
+    "{{partner}} just bought {{item}}. saving it for later.",
+    "{{partner}} acquired {{item}}. dread the redemption.",
+    "🛍️ {{partner}} stockpiled {{item}}. tick tick tick.",
+    "{{partner}} added {{item}} to their arsenal. brace.",
+  ],
+  redemption_requested: [
+    "{{item}} — now. {{partner}} cashed in.",
+    "{{partner}} is calling in {{item}}. drop everything.",
+    "🚨 {{partner}} wants {{item}}. RIGHT now.",
+    "incoming: {{item}}. {{partner}} is waiting.",
+  ],
+  delivery_confirmed: [
+    "✓ {{partner}} delivered {{item}}. respect.",
+    "{{item}}: paid in full. {{partner}} got theirs.",
+    "{{partner}} confirmed {{item}}. closed clean.",
+    "✓ done — {{item}}. {{partner}} is square.",
   ],
 };
 
