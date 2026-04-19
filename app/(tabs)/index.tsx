@@ -8,6 +8,7 @@ import * as Haptics from 'expo-haptics';
 import { ACCENT_HEX, CLASS_META } from '@/lib/characters';
 import { Stage } from '@/components/game/Stage';
 import { FighterCard } from '@/components/game/FighterCard';
+import { DebtBadge } from '@/components/game/DebtBadge';
 import { VsDivider } from '@/components/game/VsDivider';
 import { StrikeDrawer } from '@/components/game/StrikeDrawer';
 import { StrikeProjectile } from '@/components/game/StrikeProjectile';
@@ -15,8 +16,9 @@ import { formatCountdown } from '@/lib/round';
 import { useRoundView } from '@/lib/useRoundView';
 import { useStrikeSelect } from '@/lib/useStrikeSelect';
 import { useSession } from '@/lib/store';
+import { supabase } from '@/lib/supabase';
 import { WORLD_META } from '@/lib/worlds';
-import type { Activity } from '@/lib/types';
+import type { Activity, Round, ShopItem } from '@/lib/types';
 
 function ActionTile({
   icon,
@@ -247,6 +249,43 @@ function ControlPanel({ children }: { children: React.ReactNode }) {
   );
 }
 
+function DebtBadgeMaybe({
+  round,
+  item,
+  fighterId,
+  viewerId,
+}: {
+  round: Round;
+  item: ShopItem;
+  fighterId: string;
+  viewerId: string;
+}) {
+  // Show OWES badge over the loser's fighter (always).
+  // Show COLLECTS badge over the loser's fighter on the winner's view too —
+  // since both badges live on the loser's sprite, just pick variant by viewer.
+  if (round.loser_id !== fighterId) return null;
+
+  const variant: 'owes' | 'collects' =
+    round.winner_id === viewerId ? 'collects' : 'owes';
+
+  return (
+    <DebtBadge
+      variant={variant}
+      itemIcon={extractIcon(item.name)}
+      itemLabel={stripIcon(item.name)}
+    />
+  );
+}
+
+function extractIcon(name: string): string {
+  const match = name.match(/^(\p{Emoji_Presentation}|\p{Extended_Pictographic})/u);
+  return match ? match[0] : '🎁';
+}
+
+function stripIcon(name: string): string {
+  return name.replace(/^(\p{Emoji_Presentation}|\p{Extended_Pictographic})\s*/u, '').trim();
+}
+
 function InviteBanner({ code }: { code: string }) {
   return (
     <View
@@ -332,6 +371,42 @@ export default function HomeScreen() {
   const strike = useStrikeSelect(player, couple);
 
   const { p1, p2, stats, round, countdownSeconds, lastEvent } = view;
+
+  const [activeDebtRound, setActiveDebtRound] = useState<Round | null>(null);
+  const [activeDebtItem, setActiveDebtItem] = useState<ShopItem | null>(null);
+
+  useEffect(() => {
+    if (!couple || !player) return;
+    let cancelled = false;
+    (async () => {
+      // Find a closed round with picked but not paid tribute that involves us.
+      const { data: rounds } = await supabase
+        .from('rounds')
+        .select('*')
+        .eq('couple_id', couple.id)
+        .eq('status', 'closed')
+        .not('tribute_shop_item_id', 'is', null)
+        .is('tribute_paid_at', null)
+        .order('number', { ascending: false })
+        .limit(1);
+      const r = (rounds?.[0] ?? null) as Round | null;
+      if (cancelled) return;
+      setActiveDebtRound(r);
+      if (r?.tribute_shop_item_id) {
+        const { data: item } = await supabase
+          .from('shop_items')
+          .select('*')
+          .eq('id', r.tribute_shop_item_id)
+          .single<ShopItem>();
+        if (!cancelled) setActiveDebtItem(item ?? null);
+      } else {
+        setActiveDebtItem(null);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [couple?.id, player?.id]);
 
   const p1Accent = p1 ? ACCENT_HEX[CLASS_META[p1.arcade_class].accent] : '#FFCC00';
   const p2Accent = p2 ? ACCENT_HEX[CLASS_META[p2.arcade_class].accent] : '#FF3333';
@@ -548,15 +623,26 @@ export default function HomeScreen() {
               }}
             >
               <View style={{ flex: 5, justifyContent: 'flex-end' }}>
-                <FighterCard
-                  player={p1}
-                  score={p1Score}
-                  side="left"
-                  isLeader={leader === 'p1' && p2 != null}
-                  attackKey={attackKeyP1}
-                  lastDelta={lastDeltaP1}
-                  maxScoreHint={maxScoreHint}
-                />
+                {/* P1 fighter wrapper — DebtBadge layers above when applicable */}
+                <View style={{ position: 'relative', alignItems: 'center' }}>
+                  <FighterCard
+                    player={p1}
+                    score={p1Score}
+                    side="left"
+                    isLeader={leader === 'p1' && p2 != null}
+                    attackKey={attackKeyP1}
+                    lastDelta={lastDeltaP1}
+                    maxScoreHint={maxScoreHint}
+                  />
+                  {activeDebtRound && activeDebtItem && p1 && (
+                    <DebtBadgeMaybe
+                      round={activeDebtRound}
+                      item={activeDebtItem}
+                      fighterId={p1.id}
+                      viewerId={player?.id ?? ''}
+                    />
+                  )}
+                </View>
               </View>
               <View style={{ flex: 3, justifyContent: 'center' }}>
                 <VsDivider
@@ -567,15 +653,26 @@ export default function HomeScreen() {
                 />
               </View>
               <View style={{ flex: 5, justifyContent: 'flex-end' }}>
-                <FighterCard
-                  player={p2}
-                  score={p2Score}
-                  side="right"
-                  isLeader={leader === 'p2'}
-                  attackKey={attackKeyP2}
-                  lastDelta={lastDeltaP2}
-                  maxScoreHint={maxScoreHint}
-                />
+                {/* P2 fighter wrapper — DebtBadge layers above when applicable */}
+                <View style={{ position: 'relative', alignItems: 'center' }}>
+                  <FighterCard
+                    player={p2}
+                    score={p2Score}
+                    side="right"
+                    isLeader={leader === 'p2'}
+                    attackKey={attackKeyP2}
+                    lastDelta={lastDeltaP2}
+                    maxScoreHint={maxScoreHint}
+                  />
+                  {activeDebtRound && activeDebtItem && p2 && (
+                    <DebtBadgeMaybe
+                      round={activeDebtRound}
+                      item={activeDebtItem}
+                      fighterId={p2.id}
+                      viewerId={player?.id ?? ''}
+                    />
+                  )}
+                </View>
               </View>
             </View>
           </Stage>
