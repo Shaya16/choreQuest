@@ -5,26 +5,22 @@ import { MotiView } from 'moti';
 import type { Activity } from '@/lib/types';
 
 type Props = {
-  slotNumber: number;
   activity: Activity;
   usesLeft: number;
   dailyCap: number;
   accentHex: string;
   onStrike: () => void;
-  strikeFlashKey: number; // bump to trigger hit animation
+  strikeFlashKey: number;
 };
 
 /**
- * Arcade move-list entry. Chunky beveled card that feels like picking an
- * attack from a fighting-game move menu:
- *   [ 01 | +30 ] MOVE NAME                      ▰▰▱
- *                description in silkscreen       AMMO 2/3
- *
- * When ammo hits 0 the card goes dark with a DEPLETED stamp. On strike we
- * flash the border, scale-pop, and fire a "+N" damage number from the card.
+ * Arsenal move card. Left rail shows payout(s), content column shows the
+ * move name + qualifier + optional badges, right rail shows ammo pips.
+ * Chore rows (household, round_value > 0) show two stacked numbers on the
+ * left rail: round points in world accent (top) and shop coins in yellow
+ * (bottom). Non-chore rows show a single centered shop-coin number.
  */
 export function MoveCard({
-  slotNumber,
   activity,
   usesLeft,
   dailyCap,
@@ -33,8 +29,9 @@ export function MoveCard({
   strikeFlashKey,
 }: Props) {
   const depleted = usesLeft <= 0;
-  const payout =
-    (activity.base_value ?? 0) + (activity.bonus ?? 0);
+  const shopCoins = (activity.base_value ?? 0) + (activity.bonus ?? 0);
+  const roundPts = activity.round_value ?? 0;
+  const isChore = roundPts > 0;
   const isBonusMove = (activity.bonus ?? 0) > 0;
 
   const [flashDamage, setFlashDamage] = useState<number | null>(null);
@@ -43,12 +40,12 @@ export function MoveCard({
   useEffect(() => {
     if (strikeFlashKey !== lastKey.current) {
       lastKey.current = strikeFlashKey;
-      setFlashDamage(payout);
+      setFlashDamage(shopCoins);
       const t = setTimeout(() => setFlashDamage(null), 900);
       return () => clearTimeout(t);
     }
     return undefined;
-  }, [strikeFlashKey, payout]);
+  }, [strikeFlashKey, shopCoins]);
 
   return (
     <Pressable
@@ -57,7 +54,6 @@ export function MoveCard({
     >
       {({ pressed }) => (
         <View style={{ position: 'relative' }}>
-          {/* Drop shadow slab */}
           {!pressed && !depleted && (
             <View
               style={{
@@ -90,13 +86,13 @@ export function MoveCard({
                 borderWidth: 3,
                 borderColor: depleted ? '#4A4A4A' : accentHex,
                 opacity: depleted ? 0.45 : 1,
-                minHeight: 78,
+                minHeight: 72,
               }}
             >
-              {/* Slot / payout column (left rail) */}
+              {/* Left rail: payout(s) */}
               <View
                 style={{
-                  width: 64,
+                  width: 56,
                   borderRightWidth: 2,
                   borderRightColor: depleted ? '#4A4A4A' : accentHex,
                   alignItems: 'center',
@@ -105,39 +101,42 @@ export function MoveCard({
                   backgroundColor: depleted ? '#0a0a0a' : 'rgba(0,0,0,0.6)',
                 }}
               >
-                <Text
-                  style={{
-                    fontFamily: 'PressStart2P',
-                    color: '#4A4A4A',
-                    fontSize: 9,
-                  }}
-                >
-                  {String(slotNumber).padStart(2, '0')}
-                </Text>
-                <Text
-                  style={{
-                    fontFamily: 'PressStart2P',
-                    color: depleted ? '#4A4A4A' : '#FFCC00',
-                    fontSize: 18,
-                    marginTop: 6,
-                  }}
-                >
-                  +{payout}
-                </Text>
-                <Text
-                  style={{
-                    fontFamily: 'Silkscreen',
-                    color: '#4A4A4A',
-                    fontSize: 8,
-                    marginTop: 2,
-                    letterSpacing: 1,
-                  }}
-                >
-                  COINS
-                </Text>
+                {isChore ? (
+                  <>
+                    <Text
+                      style={{
+                        fontFamily: 'PressStart2P',
+                        color: depleted ? '#4A4A4A' : accentHex,
+                        fontSize: 16,
+                      }}
+                    >
+                      +{roundPts}
+                    </Text>
+                    <Text
+                      style={{
+                        fontFamily: 'PressStart2P',
+                        color: depleted ? '#4A4A4A' : '#FFCC00',
+                        fontSize: 12,
+                        marginTop: 4,
+                      }}
+                    >
+                      +{shopCoins}
+                    </Text>
+                  </>
+                ) : (
+                  <Text
+                    style={{
+                      fontFamily: 'PressStart2P',
+                      color: depleted ? '#4A4A4A' : '#FFCC00',
+                      fontSize: 18,
+                    }}
+                  >
+                    +{shopCoins}
+                  </Text>
+                )}
               </View>
 
-              {/* Name + description */}
+              {/* Content: name + qualifier + badges */}
               <View
                 style={{
                   flex: 1,
@@ -155,36 +154,51 @@ export function MoveCard({
                   }}
                   numberOfLines={2}
                 >
-                  {activity.name.toUpperCase()}
+                  {activity.name}
                 </Text>
-                <View
+                <Text
                   style={{
-                    flexDirection: 'row',
-                    flexWrap: 'wrap',
-                    marginTop: 4,
-                    gap: 4,
+                    fontFamily: 'Silkscreen',
+                    color: depleted ? '#4A4A4A' : '#8A8A8A',
+                    fontSize: 9,
+                    letterSpacing: 1,
+                    marginTop: 3,
+                    minHeight: 11,
                   }}
+                  numberOfLines={1}
                 >
-                  {isBonusMove && (
-                    <Badge label="★ BONUS" color="#FFCC00" dim={depleted} />
-                  )}
-                  {activity.requires_photo && (
-                    <Badge label="📷 PHOTO" color="#00DDFF" dim={depleted} />
-                  )}
-                  {activity.tier && (
-                    <Badge
-                      label={activity.tier.toUpperCase()}
-                      color="#FFB8DE"
-                      dim={depleted}
-                    />
-                  )}
-                </View>
+                  {activity.description ?? ''}
+                </Text>
+                {(isBonusMove || activity.requires_photo || activity.tier) && (
+                  <View
+                    style={{
+                      flexDirection: 'row',
+                      flexWrap: 'wrap',
+                      marginTop: 4,
+                      gap: 4,
+                    }}
+                  >
+                    {isBonusMove && (
+                      <Badge label="★ BONUS" color="#FFCC00" dim={depleted} />
+                    )}
+                    {activity.requires_photo && (
+                      <Badge label="📷 PHOTO" color="#00DDFF" dim={depleted} />
+                    )}
+                    {activity.tier && (
+                      <Badge
+                        label={activity.tier.toUpperCase()}
+                        color="#FFB8DE"
+                        dim={depleted}
+                      />
+                    )}
+                  </View>
+                )}
               </View>
 
-              {/* Ammo pips column (right rail) */}
+              {/* Right rail: ammo pips */}
               <View
                 style={{
-                  width: 64,
+                  width: 52,
                   borderLeftWidth: 2,
                   borderLeftColor: depleted ? '#4A4A4A' : accentHex,
                   alignItems: 'center',
@@ -193,24 +207,7 @@ export function MoveCard({
                   backgroundColor: depleted ? '#0a0a0a' : 'rgba(0,0,0,0.6)',
                 }}
               >
-                <Text
-                  style={{
-                    fontFamily: 'Silkscreen',
-                    color: '#4A4A4A',
-                    fontSize: 8,
-                    letterSpacing: 1,
-                  }}
-                >
-                  AMMO
-                </Text>
-                <View
-                  style={{
-                    flexDirection: 'row',
-                    gap: 2,
-                    marginTop: 6,
-                    marginBottom: 4,
-                  }}
-                >
+                <View style={{ flexDirection: 'row', gap: 2 }}>
                   {Array.from({ length: dailyCap }).map((_, i) => {
                     const filled = i < usesLeft;
                     return (
@@ -231,18 +228,8 @@ export function MoveCard({
                     );
                   })}
                 </View>
-                <Text
-                  style={{
-                    fontFamily: 'PressStart2P',
-                    color: depleted ? '#4A4A4A' : '#FFFFFF',
-                    fontSize: 9,
-                  }}
-                >
-                  {usesLeft}/{dailyCap}
-                </Text>
               </View>
 
-              {/* DEPLETED diagonal stamp */}
               {depleted && (
                 <View
                   style={{
@@ -280,7 +267,6 @@ export function MoveCard({
               )}
             </View>
 
-            {/* Damage popup on strike */}
             {flashDamage != null && (
               <MotiView
                 key={`dmg-${strikeFlashKey}`}
