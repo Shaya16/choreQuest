@@ -17,7 +17,12 @@ import { useRoundView } from '@/lib/useRoundView';
 import { useSession } from '@/lib/store';
 import { supabase } from '@/lib/supabase';
 import { clearPushToken, registerPushToken } from '@/lib/notifications';
-import { forceCloseCurrentRound, loadTributeCards, pickTribute } from '@/lib/tribute';
+import {
+  forceCloseCurrentRound,
+  loadTributeCards,
+  markTributePaid,
+  pickTribute,
+} from '@/lib/tribute';
 import { ensureActiveRound } from '@/lib/round';
 import type { Activity, Log, Player, Round } from '@/lib/types';
 
@@ -36,6 +41,7 @@ export default function MenuScreen() {
   const [stubInfo, setStubInfo] = useState<string | null>(null);
   const [closeBusy, setCloseBusy] = useState(false);
   const [injectBusy, setInjectBusy] = useState(false);
+  const [fakePayBusy, setFakePayBusy] = useState(false);
 
   const [notifEnabled, setNotifEnabled] = useState<boolean>(!!player?.expo_push_token);
 
@@ -159,6 +165,45 @@ export default function MenuScreen() {
       );
     } finally {
       setInjectBusy(false);
+    }
+  }
+
+  async function handleFakeStubCollect() {
+    if (!couple || !player) {
+      Alert.alert('Fake collect failed', 'Not paired yet.');
+      return;
+    }
+    setFakePayBusy(true);
+    try {
+      // Find the most recent unpaid tribute round for this couple (picked but
+      // not paid). Doesn't matter who won; we just close the loop so the user
+      // can see the debt clear.
+      const { data: rows } = await supabase
+        .from('rounds')
+        .select('id, number, winner_id, tribute_shop_item_id, tribute_paid_at')
+        .eq('couple_id', couple.id)
+        .eq('status', 'closed')
+        .not('tribute_shop_item_id', 'is', null)
+        .is('tribute_paid_at', null)
+        .order('number', { ascending: false })
+        .limit(1);
+      const r = rows?.[0];
+      if (!r) {
+        Alert.alert('Fake collect', 'Nothing unpaid to clear.');
+        return;
+      }
+      await markTributePaid(r.id);
+      Alert.alert(
+        'Fake collect',
+        `R${r.number} marked paid on the stub's behalf. Home should clear.`
+      );
+    } catch (e) {
+      Alert.alert(
+        'Fake collect failed',
+        e instanceof Error ? e.message : String(e)
+      );
+    } finally {
+      setFakePayBusy(false);
     }
   }
 
@@ -536,6 +581,28 @@ export default function MenuScreen() {
               }}
             >
               🛠 FORCE CLOSE ROUND
+            </Text>
+          </Pressable>
+          <View style={{ height: 8 }} />
+          <Pressable
+            onPress={handleFakeStubCollect}
+            disabled={fakePayBusy}
+            style={{
+              borderWidth: 2,
+              borderColor: '#FFCC00',
+              padding: 12,
+              opacity: fakePayBusy ? 0.5 : 1,
+            }}
+          >
+            <Text
+              style={{
+                fontFamily: 'PressStart2P',
+                color: '#FFCC00',
+                fontSize: 9,
+                textAlign: 'center',
+              }}
+            >
+              🛠 FAKE STUB COLLECT (CLEAR DEBT)
             </Text>
           </Pressable>
         </View>

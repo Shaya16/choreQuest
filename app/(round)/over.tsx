@@ -58,6 +58,33 @@ export default function RoundOverScreen() {
         }
         setRound(r);
 
+        // If the user has already seen the cinematic for this round (they're
+        // re-entering via a Control Panel tile), skip straight to the
+        // appropriate resolution mode instead of replaying KoOverlay.
+        const seen = await AsyncStorage.getItem(
+          cinematicSeenKey(player.id, r.id)
+        );
+        if (!cancelled && seen) {
+          if (!r.winner_id) {
+            setMode('tied');
+          } else if (r.winner_id === player.id) {
+            if (!r.tribute_shop_item_id) {
+              const tier = r.tribute_tier ?? 'knockout';
+              loadTributeCards(tier, r.id)
+                .then((c) => setCards(c))
+                .catch(() => setCards([]));
+              setMode('pick');
+            } else if (!r.tribute_paid_at) {
+              setMode('collect');
+            } else {
+              finishAndGoHome();
+              return;
+            }
+          } else {
+            setMode('acknowledge');
+          }
+        }
+
         // Load partner name
         const partnerId =
           r.winner_id === player.id ? r.loser_id : r.winner_id ?? null;
