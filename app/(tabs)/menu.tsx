@@ -105,14 +105,26 @@ export default function MenuScreen() {
     // Find the most recent closed round that's still unresolved FOR THIS PLAYER
     // and navigate straight to round-over for it. We don't rely on the root
     // layout's redirect effect because its deps rarely change after force-close.
-    const { data: closedRows } = await supabase
+    const { data: closedRows, error: qErr } = await supabase
       .from('rounds')
       .select('*')
       .eq('couple_id', couple.id)
       .eq('status', 'closed')
       .order('number', { ascending: false })
       .limit(5);
+    if (qErr) {
+      Alert.alert('Force close: query failed', qErr.message);
+      return;
+    }
     const closed = (closedRows ?? []) as Round[];
+
+    if (closed.length === 0) {
+      Alert.alert(
+        'Force close: no closed rounds found',
+        `The function reported success but no rows have status='closed' for couple ${couple.id.slice(0, 8)}. The cron may have raced or RLS hid it.`
+      );
+      return;
+    }
 
     const target = closed.find((r) => {
       if (r.winner_id === player.id) {
@@ -123,11 +135,37 @@ export default function MenuScreen() {
     });
 
     if (!target) {
-      Alert.alert('Force close', 'Round closed but nothing unresolved for you.');
+      // Dump what we found so we can see why none qualified.
+      const summary = closed
+        .map(
+          (r) =>
+            `R${r.number}: winner=${r.winner_id?.slice(0, 4) ?? 'null'} ` +
+            `mine=${r.winner_id === player.id} ` +
+            `picked=${r.tribute_shop_item_id != null} ` +
+            `paid=${r.tribute_paid_at != null}`
+        )
+        .join('\n');
+      Alert.alert(
+        `Closed rounds (you=${player.id.slice(0, 4)})`,
+        summary
+      );
       return;
     }
 
-    router.replace({ pathname: '/(round)/over', params: { roundId: target.id } });
+    Alert.alert(
+      'Navigating to round-over',
+      `R${target.number} · winner=${target.winner_id === player.id ? 'YOU' : 'partner'} · tier=${target.tribute_tier ?? 'null'}`,
+      [
+        {
+          text: 'Go',
+          onPress: () =>
+            router.replace({
+              pathname: '/(round)/over',
+              params: { roundId: target.id },
+            }),
+        },
+      ]
+    );
   }
 
   return (
