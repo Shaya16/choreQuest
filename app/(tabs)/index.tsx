@@ -372,41 +372,57 @@ export default function HomeScreen() {
 
   const { p1, p2, stats, round, countdownSeconds, lastEvent } = view;
 
-  const [activeDebtRound, setActiveDebtRound] = useState<Round | null>(null);
-  const [activeDebtItem, setActiveDebtItem] = useState<ShopItem | null>(null);
+  // Most recent closed round that's unresolved on the current player's side:
+  // either the winner hasn't picked yet, the winner hasn't collected yet, or
+  // the loser still owes. Drives the home-screen Control Panel CTA + DebtBadge.
+  const [pendingRound, setPendingRound] = useState<Round | null>(null);
+  const [pendingItem, setPendingItem] = useState<ShopItem | null>(null);
 
   useEffect(() => {
     if (!couple || !player) return;
     let cancelled = false;
     (async () => {
-      // Find a closed round with picked but not paid tribute that involves us.
       const { data: rounds } = await supabase
         .from('rounds')
         .select('*')
         .eq('couple_id', couple.id)
         .eq('status', 'closed')
-        .not('tribute_shop_item_id', 'is', null)
         .is('tribute_paid_at', null)
+        .not('winner_id', 'is', null)
         .order('number', { ascending: false })
         .limit(1);
       const r = (rounds?.[0] ?? null) as Round | null;
       if (cancelled) return;
-      setActiveDebtRound(r);
+      setPendingRound(r);
       if (r?.tribute_shop_item_id) {
         const { data: item } = await supabase
           .from('shop_items')
           .select('*')
           .eq('id', r.tribute_shop_item_id)
           .single<ShopItem>();
-        if (!cancelled) setActiveDebtItem(item ?? null);
+        if (!cancelled) setPendingItem(item ?? null);
       } else {
-        setActiveDebtItem(null);
+        setPendingItem(null);
       }
     })();
     return () => {
       cancelled = true;
     };
   }, [couple?.id, player?.id]);
+
+  // Derived state used by the render below. The CTA in the Control Panel
+  // changes label + color based on role / stage:
+  //   - winner, unpicked  → "CLAIM TRIBUTE"
+  //   - winner, unpaid    → "COLLECT TRIBUTE"
+  //   - loser,  unpaid    → "VIEW DEBT"
+  const imWinner = pendingRound?.winner_id === player?.id;
+  const needsPick = !!pendingRound && imWinner && !pendingRound.tribute_shop_item_id;
+  const needsCollect =
+    !!pendingRound && imWinner && !!pendingRound.tribute_shop_item_id;
+  const isLoserDebt =
+    !!pendingRound &&
+    pendingRound.winner_id != null &&
+    pendingRound.winner_id !== player?.id;
 
   const p1Accent = p1 ? ACCENT_HEX[CLASS_META[p1.arcade_class].accent] : '#FFCC00';
   const p2Accent = p2 ? ACCENT_HEX[CLASS_META[p2.arcade_class].accent] : '#FF3333';
@@ -636,10 +652,10 @@ export default function HomeScreen() {
                     lastDelta={lastDeltaP1}
                     maxScoreHint={maxScoreHint}
                   />
-                  {activeDebtRound && activeDebtItem && p1 && (
+                  {pendingRound && pendingItem && p1 && (
                     <DebtBadgeMaybe
-                      round={activeDebtRound}
-                      item={activeDebtItem}
+                      round={pendingRound}
+                      item={pendingItem}
                       fighterId={p1.id}
                       viewerId={player?.id ?? ''}
                     />
@@ -666,10 +682,10 @@ export default function HomeScreen() {
                     lastDelta={lastDeltaP2}
                     maxScoreHint={maxScoreHint}
                   />
-                  {activeDebtRound && activeDebtItem && p2 && (
+                  {pendingRound && pendingItem && p2 && (
                     <DebtBadgeMaybe
-                      round={activeDebtRound}
-                      item={activeDebtItem}
+                      round={pendingRound}
+                      item={pendingItem}
                       fighterId={p2.id}
                       viewerId={player?.id ?? ''}
                     />
@@ -707,6 +723,54 @@ export default function HomeScreen() {
             lampDelay={0}
             onPress={() => router.push('/(tabs)/shop')}
           />
+          {needsPick && pendingRound && (
+            <ActionTile
+              icon="🎁"
+              label="CLAIM"
+              subtitle="TRIBUTE"
+              color="#9EFA00"
+              bounceDelay={120}
+              lampDelay={200}
+              onPress={() =>
+                router.push({
+                  pathname: '/(round)/over',
+                  params: { roundId: pendingRound.id },
+                })
+              }
+            />
+          )}
+          {needsCollect && pendingRound && (
+            <ActionTile
+              icon="👑"
+              label="COLLECT"
+              subtitle={pendingItem?.name?.slice(0, 14)?.toUpperCase() ?? 'TRIBUTE'}
+              color="#FFCC00"
+              bounceDelay={120}
+              lampDelay={200}
+              onPress={() =>
+                router.push({
+                  pathname: '/(round)/over',
+                  params: { roundId: pendingRound.id },
+                })
+              }
+            />
+          )}
+          {isLoserDebt && pendingRound && (
+            <ActionTile
+              icon="💀"
+              label="OWED"
+              subtitle={pendingItem?.name?.slice(0, 14)?.toUpperCase() ?? 'TBD'}
+              color="#FF3333"
+              bounceDelay={120}
+              lampDelay={200}
+              onPress={() =>
+                router.push({
+                  pathname: '/(round)/over',
+                  params: { roundId: pendingRound.id },
+                })
+              }
+            />
+          )}
         </ControlPanel>
       </ScrollView>
 

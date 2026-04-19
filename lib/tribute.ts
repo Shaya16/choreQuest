@@ -139,6 +139,16 @@ export function ackKeyForRound(playerId: string, roundId: string): string {
 }
 
 /**
+ * Local key for tracking that a player has seen the KO cinematic for a
+ * given round. Once this is set we stop auto-redirecting into /(round)/over
+ * — the user can re-enter via the home Control Panel CTA or DebtBadge tap
+ * whenever they want. Applies to winner and loser alike.
+ */
+export function cinematicSeenKey(playerId: string, roundId: string): string {
+  return `cq:cinematicSeen:${playerId}:${roundId}`;
+}
+
+/**
  * Calls the dev RPC to backdate the active round so the next cron tick closes
  * it. For the dev FORCE CLOSE button.
  */

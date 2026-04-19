@@ -11,6 +11,7 @@ import { useSession } from '@/lib/store';
 import { supabase } from '@/lib/supabase';
 import {
   ackKeyForRound,
+  cinematicSeenKey,
   loadTributeCards,
   pickTribute,
   markTributePaid,
@@ -89,9 +90,13 @@ export default function RoundOverScreen() {
     };
   }, [params.roundId, player?.id]);
 
-  // Determine starting mode after cinematic completes.
-  function onCinematicDone() {
+  // Determine starting mode after cinematic completes. Also mark the
+  // cinematic as "seen" so the root-layout redirect stops forcing this
+  // screen on every reload — from here on the user drives re-entry via
+  // home-screen surfaces (Control Panel CTA, DebtBadge).
+  async function onCinematicDone() {
     if (!round || !player) return;
+    await AsyncStorage.setItem(cinematicSeenKey(player.id, round.id), '1');
     if (!round.winner_id) {
       setMode('tied');
       return;
@@ -278,6 +283,18 @@ export default function RoundOverScreen() {
               />
             ))}
           </View>
+          <Text
+            onPress={finishAndGoHome}
+            style={{
+              fontFamily: 'PressStart2P',
+              color: '#4A4A4A',
+              fontSize: 7,
+              marginTop: 36,
+              padding: 10,
+            }}
+          >
+            ▶ PICK LATER — I'LL SAVOR IT
+          </Text>
         </ScrollView>
       )}
 

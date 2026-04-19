@@ -16,7 +16,7 @@ import { preloadAssets } from '@/lib/preload';
 import { registerPushToken } from '@/lib/notifications';
 import { loadCouplePlayers } from '@/lib/round';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { ackKeyForRound, loadUnresolvedClosedRounds } from '@/lib/tribute';
+import { cinematicSeenKey, loadUnresolvedClosedRounds } from '@/lib/tribute';
 import type { Player, Couple, Activity, Log } from '@/lib/types';
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
@@ -170,29 +170,33 @@ export default function RootLayout() {
         const rounds = await loadUnresolvedClosedRounds(couple.id, player.id);
         for (const r of rounds) {
           if (cancelled) return;
-          // Winner path: unresolved if no tribute picked OR not yet paid.
-          if (r.winner_id === player.id) {
-            if (r.tribute_shop_item_id == null || r.tribute_paid_at == null) {
-              router.replace({
-                pathname: '/(round)/over',
-                params: { roundId: r.id },
-              });
-              return;
-            }
-            continue;
-          }
-          // Loser / tied participant path: unresolved if not yet locally ack'd.
-          const ack = await AsyncStorage.getItem(
-            ackKeyForRound(player.id, r.id)
+          // The auto-redirect only fires once per round per player — to force
+          // them through the KO cinematic. After that, the tribute/ack
+          // surfaces on home take over and the user controls when to re-enter.
+          const seen = await AsyncStorage.getItem(
+            cinematicSeenKey(player.id, r.id)
           );
           if (cancelled) return;
-          if (!ack) {
-            router.replace({
-              pathname: '/(round)/over',
-              params: { roundId: r.id },
-            });
-            return;
+          if (seen) continue;
+
+          // Decide whether there's a cinematic to show at all for this round:
+          //   - Tied rounds: yes (tied overlay)
+          //   - Decisive rounds: yes for both sides until either side marks
+          //     cinematic-seen. If tribute is already fully paid there's no
+          //     emotional payload left — skip.
+          if (
+            r.winner_id &&
+            r.winner_id === player.id &&
+            r.tribute_paid_at != null
+          ) {
+            continue;
           }
+
+          router.replace({
+            pathname: '/(round)/over',
+            params: { roundId: r.id },
+          });
+          return;
         }
       } catch (e) {
         // Don't let a redirect failure crash the app. Log and let user proceed
