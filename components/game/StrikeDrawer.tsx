@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Pressable, Text, View } from 'react-native';
+import { Image, Pressable, Text, View } from 'react-native';
 import { MotiView } from 'moti';
+import * as Haptics from 'expo-haptics';
 
 import { MoveCard } from './MoveCard';
-import { WORLD_META, WORLD_ORDER } from '@/lib/worlds';
+import { COIN_SPRITE, WORLD_META, WORLD_ORDER } from '@/lib/worlds';
 import type { Activity, HouseholdTier, World } from '@/lib/types';
 
 const HOUSEHOLD_TIERS: HouseholdTier[] = ['daily', 'weekly', 'monthly'];
@@ -252,7 +253,10 @@ function WorldGrid({
       <HouseholdHeroCard
         ammo={householdAmmo}
         totalAmmo={householdTotal}
-        onPress={() => onPick('household')}
+        onPress={() => {
+          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+          onPick('household');
+        }}
       />
       {satelliteRows.map((row, i) => (
         <View key={i} style={{ flexDirection: 'row', gap: 8 }}>
@@ -273,7 +277,10 @@ function WorldGrid({
                 world={w}
                 ammo={ammo}
                 totalAmmo={total}
-                onPress={() => onPick(w)}
+                onPress={() => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  onPick(w);
+                }}
               />
             );
           })}
@@ -355,7 +362,7 @@ function HouseholdHeroCard({
               ⚔ QUEST ⚔
             </Text>
 
-            {/* Big emoji with idle float */}
+            {/* Big sprite with idle float */}
             <MotiView
               from={{ translateY: 0 }}
               animate={{ translateY: depleted ? 0 : -2 }}
@@ -366,7 +373,15 @@ function HouseholdHeroCard({
                 repeatReverse: true,
               }}
             >
-              <Text style={{ fontSize: 48 }}>{meta.emoji}</Text>
+              <Image
+                source={meta.iconSprite}
+                style={{
+                  width: 72,
+                  height: 72,
+                  opacity: depleted ? 0.45 : 1,
+                }}
+                resizeMode="contain"
+              />
             </MotiView>
 
             {/* Label */}
@@ -382,18 +397,41 @@ function HouseholdHeroCard({
               {meta.shortLabel}
             </Text>
 
-            {/* Subtitle */}
-            <Text
+            {/* Earnings row: ROUND PTS + COINS */}
+            <View
               style={{
-                fontFamily: 'Silkscreen',
-                color: depleted ? '#4A4A4A' : '#8A8A8A',
-                fontSize: 8,
-                marginTop: 4,
-                letterSpacing: 2,
+                flexDirection: 'row',
+                alignItems: 'center',
+                gap: 8,
+                marginTop: 6,
               }}
             >
-              EARN ROUND POINTS
-            </Text>
+              <Text
+                style={{
+                  fontFamily: 'PressStart2P',
+                  color: depleted ? '#4A4A4A' : QUEST_YELLOW,
+                  fontSize: 8,
+                  letterSpacing: 1,
+                }}
+              >
+                ⚔ XP
+              </Text>
+              <Image
+                source={COIN_SPRITE}
+                style={{ width: 14, height: 14, opacity: depleted ? 0.45 : 1 }}
+                resizeMode="contain"
+              />
+              <Text
+                style={{
+                  fontFamily: 'PressStart2P',
+                  color: depleted ? '#4A4A4A' : QUEST_YELLOW,
+                  fontSize: 8,
+                  letterSpacing: 1,
+                }}
+              >
+                COINS
+              </Text>
+            </View>
 
             {/* Ammo pill — white text on blue accent reads better than black */}
             <View
@@ -485,7 +523,7 @@ function WorldCard({
             <CornerBracket position="bottom-left" color={accent} />
             <CornerBracket position="bottom-right" color={accent} />
 
-            {/* Big emoji */}
+            {/* Big sprite */}
             <MotiView
               from={{ translateY: 0 }}
               animate={{ translateY: depleted ? 0 : -2 }}
@@ -496,7 +534,15 @@ function WorldCard({
                 repeatReverse: true,
               }}
             >
-              <Text style={{ fontSize: 28 }}>{meta.emoji}</Text>
+              <Image
+                source={meta.iconSprite}
+                style={{
+                  width: 44,
+                  height: 44,
+                  opacity: depleted ? 0.45 : 1,
+                }}
+                resizeMode="contain"
+              />
             </MotiView>
 
             {/* Label */}
@@ -505,12 +551,38 @@ function WorldCard({
                 fontFamily: 'PressStart2P',
                 color: accent,
                 fontSize: 9,
-                marginTop: 6,
+                marginTop: 4,
                 letterSpacing: 1,
               }}
             >
               {meta.shortLabel}
             </Text>
+
+            {/* Coin indicator — pays shop coins only (no round points) */}
+            <View
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                gap: 3,
+                marginTop: 3,
+              }}
+            >
+              <Image
+                source={COIN_SPRITE}
+                style={{ width: 10, height: 10, opacity: depleted ? 0.45 : 1 }}
+                resizeMode="contain"
+              />
+              <Text
+                style={{
+                  fontFamily: 'PressStart2P',
+                  color: depleted ? '#4A4A4A' : '#FFCC00',
+                  fontSize: 7,
+                  letterSpacing: 1,
+                }}
+              >
+                COINS
+              </Text>
+            </View>
 
             {/* Ammo pill */}
             <View
@@ -661,7 +733,11 @@ function WorldMovesHeader({
           gap: 6,
         }}
       >
-        <Text style={{ fontSize: 14 }}>{meta.emoji}</Text>
+        <Image
+          source={meta.iconSprite}
+          style={{ width: 22, height: 22 }}
+          resizeMode="contain"
+        />
         <Text
           style={{
             fontFamily: 'PressStart2P',

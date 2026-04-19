@@ -551,7 +551,7 @@ export default function RoundOverScreen() {
               textAlign: 'center',
             }}
           >
-            NOBODY HIT 50 CHORE POINTS THIS WEEK.
+            NOBODY HIT 50 CHORE XP THIS WEEK.
           </Text>
           <Text
             style={{

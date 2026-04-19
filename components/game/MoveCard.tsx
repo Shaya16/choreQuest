@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
-import { Pressable, Text, View } from 'react-native';
+import { Image, Pressable, Text, View } from 'react-native';
 import { MotiView } from 'moti';
 
+import { COIN_SPRITE } from '@/lib/worlds';
 import type { Activity } from '@/lib/types';
 
 type Props = {
@@ -104,43 +105,68 @@ export function MoveCard({
               >
                 {isChore ? (
                   <>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 2 }}>
+                      <Text
+                        numberOfLines={1}
+                        adjustsFontSizeToFit
+                        minimumFontScale={0.7}
+                        style={{
+                          fontFamily: 'PressStart2P',
+                          color: depleted ? '#4A4A4A' : accentHex,
+                          fontSize: 16,
+                        }}
+                      >
+                        +{roundPts}
+                      </Text>
+                      <Text
+                        style={{
+                          fontFamily: 'PressStart2P',
+                          color: depleted ? '#4A4A4A' : accentHex,
+                          fontSize: 8,
+                          letterSpacing: 1,
+                        }}
+                      >
+                        XP
+                      </Text>
+                    </View>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3, marginTop: 4 }}>
+                      <Image
+                        source={COIN_SPRITE}
+                        style={{ width: 12, height: 12, opacity: depleted ? 0.45 : 1 }}
+                        resizeMode="contain"
+                      />
+                      <Text
+                        numberOfLines={1}
+                        style={{
+                          fontFamily: 'PressStart2P',
+                          color: depleted ? '#4A4A4A' : '#FFCC00',
+                          fontSize: 12,
+                        }}
+                      >
+                        +{shopCoins}
+                      </Text>
+                    </View>
+                  </>
+                ) : (
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                    <Image
+                      source={COIN_SPRITE}
+                      style={{ width: 16, height: 16, opacity: depleted ? 0.45 : 1 }}
+                      resizeMode="contain"
+                    />
                     <Text
                       numberOfLines={1}
                       adjustsFontSizeToFit
                       minimumFontScale={0.7}
                       style={{
                         fontFamily: 'PressStart2P',
-                        color: depleted ? '#4A4A4A' : accentHex,
-                        fontSize: 16,
-                      }}
-                    >
-                      +{roundPts}
-                    </Text>
-                    <Text
-                      numberOfLines={1}
-                      style={{
-                        fontFamily: 'PressStart2P',
                         color: depleted ? '#4A4A4A' : '#FFCC00',
-                        fontSize: 12,
-                        marginTop: 4,
+                        fontSize: 18,
                       }}
                     >
                       +{shopCoins}
                     </Text>
-                  </>
-                ) : (
-                  <Text
-                    numberOfLines={1}
-                    adjustsFontSizeToFit
-                    minimumFontScale={0.7}
-                    style={{
-                      fontFamily: 'PressStart2P',
-                      color: depleted ? '#4A4A4A' : '#FFCC00',
-                      fontSize: 18,
-                    }}
-                  >
-                    +{shopCoins}
-                  </Text>
+                  </View>
                 )}
               </View>
 

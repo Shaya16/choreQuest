@@ -275,7 +275,7 @@ async function pushRoundInactive(
   p2: PlayerRow | null,
   round: RoundRow
 ): Promise<void> {
-  const message = `ROUND ${round.number} INACTIVE — nobody hit 50 chore points. No tribute this week.`;
+  const message = `ROUND ${round.number} INACTIVE — nobody hit 50 chore XP. No tribute this week.`;
   for (const player of [p1, p2].filter((p): p is PlayerRow => !!p)) {
     if (!player.expo_push_token) continue;
     await sendPush({

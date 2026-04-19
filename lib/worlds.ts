@@ -1,3 +1,5 @@
+import type { ImageSourcePropType } from 'react-native';
+
 import type { Player, World } from './types';
 
 export const WORLD_ORDER: World[] = [
@@ -13,6 +15,7 @@ type WorldMeta = {
   label: string;
   shortLabel: string;
   emoji: string;
+  iconSprite: ImageSourcePropType;
   accentHex: string;
   multKey: keyof Player;
 };
@@ -22,6 +25,7 @@ export const WORLD_META: Record<World, WorldMeta> = {
     label: 'GYM',
     shortLabel: 'GYM',
     emoji: '💪',
+    iconSprite: require('../assets/sprites/worlds/gym.png'),
     accentHex: '#FF3333',
     multKey: 'mult_gym',
   },
@@ -29,6 +33,7 @@ export const WORLD_META: Record<World, WorldMeta> = {
     label: 'AEROBICS',
     shortLabel: 'CARDIO',
     emoji: '🏃',
+    iconSprite: require('../assets/sprites/worlds/aerobics.png'),
     accentHex: '#FFB8DE',
     multKey: 'mult_aerobics',
   },
@@ -36,6 +41,7 @@ export const WORLD_META: Record<World, WorldMeta> = {
     label: 'UNIVERSITY',
     shortLabel: 'BRAIN',
     emoji: '🎓',
+    iconSprite: require('../assets/sprites/worlds/university.png'),
     accentHex: '#9EFA00',
     multKey: 'mult_university',
   },
@@ -43,6 +49,7 @@ export const WORLD_META: Record<World, WorldMeta> = {
     label: 'DIET',
     shortLabel: 'FUEL',
     emoji: '🥗',
+    iconSprite: require('../assets/sprites/worlds/diet.png'),
     accentHex: '#FFA63F',
     multKey: 'mult_diet',
   },
@@ -50,6 +57,7 @@ export const WORLD_META: Record<World, WorldMeta> = {
     label: 'HOUSEHOLD',
     shortLabel: 'HOUSE',
     emoji: '🧹',
+    iconSprite: require('../assets/sprites/worlds/household.png'),
     accentHex: '#2121FF',
     multKey: 'mult_household',
   },
@@ -57,7 +65,10 @@ export const WORLD_META: Record<World, WorldMeta> = {
     label: 'READING',
     shortLabel: 'READ',
     emoji: '📖',
+    iconSprite: require('../assets/sprites/worlds/reading.png'),
     accentHex: '#00DDFF',
     multKey: 'mult_reading',
   },
 };
+
+export const COIN_SPRITE: ImageSourcePropType = require('../assets/sprites/worlds/coin.png');
