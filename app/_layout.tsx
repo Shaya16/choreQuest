@@ -7,12 +7,14 @@ import { StatusBar } from 'expo-status-bar';
 import { View } from 'react-native';
 
 import { BootScreen } from '@/components/game/BootScreen';
+import { StrikeBanner, type StrikeBannerEvent } from '@/components/game/StrikeBanner';
 import { supabase } from '@/lib/supabase';
 import { useSession } from '@/lib/store';
 import { loadActivities } from '@/lib/logger';
 import { preloadAssets } from '@/lib/preload';
 import { registerPushToken } from '@/lib/notifications';
-import type { Player, Couple } from '@/lib/types';
+import { loadCouplePlayers } from '@/lib/round';
+import type { Player, Couple, Activity, Log } from '@/lib/types';
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
 
@@ -147,6 +149,63 @@ export default function RootLayout() {
     if (fontsLoaded || fontError) SplashScreen.hideAsync().catch(() => {});
   }, [fontsLoaded, fontError]);
 
+  // Partner strike banner — fetches the partner once the couple resolves,
+  // then subscribes to their log inserts via Supabase realtime.
+  const [bannerEvent, setBannerEvent] = useState<StrikeBannerEvent | null>(null);
+  const [partner, setPartner] = useState<Player | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    if (!couple || !player) {
+      setPartner(null);
+      return () => {
+        cancelled = true;
+      };
+    }
+    loadCouplePlayers(couple.id).then(({ players }) => {
+      if (cancelled) return;
+      const other = players.find((p) => p.id !== player.id) ?? null;
+      setPartner(other);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [couple?.id, player?.id]);
+
+  useEffect(() => {
+    if (!player || !partner) return;
+    const channel = supabase
+      .channel(`banner-${player.id}-${partner.id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'logs',
+          filter: `player_id=eq.${partner.id}`,
+        },
+        async (payload) => {
+          const log = payload.new as Log;
+          const { data: activity } = await supabase
+            .from('activities')
+            .select('*')
+            .eq('id', log.activity_id)
+            .single<Activity>();
+          if (!activity) return;
+          setBannerEvent({
+            id: log.id,
+            partner,
+            activity,
+            coins: log.coins_earned ?? 0,
+          });
+        }
+      )
+      .subscribe();
+    return () => {
+      void channel.unsubscribe();
+    };
+  }, [player?.id, partner?.id]);
+
   if (!fontsLoaded && !fontError) {
     // Fonts haven't landed yet — Expo's native splash still covers the screen.
     return <View className="flex-1 bg-bg" />;
@@ -179,6 +238,10 @@ export default function RootLayout() {
         <Stack.Screen name="(auth)" />
         <Stack.Screen name="(tabs)" />
       </Stack>
+      <StrikeBanner
+        event={bannerEvent}
+        onDismiss={() => setBannerEvent(null)}
+      />
     </>
   );
 }
