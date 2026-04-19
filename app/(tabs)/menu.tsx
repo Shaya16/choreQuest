@@ -18,7 +18,9 @@ import { useSession } from '@/lib/store';
 import { supabase } from '@/lib/supabase';
 import { clearPushToken, registerPushToken } from '@/lib/notifications';
 import { forceCloseCurrentRound } from '@/lib/tribute';
-import type { Player, Round } from '@/lib/types';
+import { createLog } from '@/lib/logger';
+import { ensureActiveRound } from '@/lib/round';
+import type { Activity, Player, Round } from '@/lib/types';
 
 /**
  * Pause-menu modal presented from Home. Combines the action feed (history)
@@ -30,9 +32,11 @@ export default function MenuScreen() {
   const view = useRoundView(couple);
   const { p1, p2, recentLogs } = view;
 
+  const activities = useSession((s) => s.activities);
   const [stubBusy, setStubBusy] = useState(false);
   const [stubInfo, setStubInfo] = useState<string | null>(null);
   const [closeBusy, setCloseBusy] = useState(false);
+  const [injectBusy, setInjectBusy] = useState(false);
 
   const [notifEnabled, setNotifEnabled] = useState<boolean>(!!player?.expo_push_token);
 
@@ -87,6 +91,53 @@ export default function MenuScreen() {
     }
     const removed = typeof data === 'number' ? data : 0;
     setStubInfo(removed ? `Banished ${removed} stub.` : 'No stub to banish.');
+  }
+
+  async function handleInjectLogs() {
+    if (!couple || !player) {
+      Alert.alert('Inject failed', 'Not paired yet.');
+      return;
+    }
+    if (activities.length === 0) {
+      Alert.alert('Inject failed', 'Activities not loaded yet.');
+      return;
+    }
+    setInjectBusy(true);
+    try {
+      const round = await ensureActiveRound(couple.id);
+      if (!round) {
+        Alert.alert('Inject failed', 'Could not resolve active round.');
+        return;
+      }
+      // Pick 5 random activities (weighted toward higher base_value for fast
+      // margin builds) and fire a log for each.
+      const pool = activities.slice();
+      const picks: Activity[] = [];
+      for (let i = 0; i < 5 && pool.length > 0; i++) {
+        const idx = Math.floor(Math.random() * pool.length);
+        picks.push(pool.splice(idx, 1)[0]);
+      }
+      let totalCoins = 0;
+      let inserted = 0;
+      for (const a of picks) {
+        const log = await createLog({ activity: a, player, roundId: round.id });
+        if (log) {
+          inserted++;
+          totalCoins += log.coins_earned ?? 0;
+        }
+      }
+      Alert.alert(
+        'Logs injected',
+        `${inserted}/${picks.length} logs · +${totalCoins} coins into R${round.number}.`
+      );
+    } catch (e) {
+      Alert.alert(
+        'Inject failed',
+        e instanceof Error ? e.message : String(e)
+      );
+    } finally {
+      setInjectBusy(false);
+    }
   }
 
   async function handleForceClose() {
@@ -393,6 +444,28 @@ export default function MenuScreen() {
               {stubInfo}
             </Text>
           )}
+          <View style={{ height: 8 }} />
+          <Pressable
+            onPress={handleInjectLogs}
+            disabled={injectBusy}
+            style={{
+              borderWidth: 2,
+              borderColor: '#9EFA00',
+              padding: 12,
+              opacity: injectBusy ? 0.5 : 1,
+            }}
+          >
+            <Text
+              style={{
+                fontFamily: 'PressStart2P',
+                color: '#9EFA00',
+                fontSize: 9,
+                textAlign: 'center',
+              }}
+            >
+              🛠 INJECT 5 DUMMY LOGS
+            </Text>
+          </Pressable>
           <View style={{ height: 8 }} />
           <Pressable
             onPress={handleForceClose}
