@@ -151,45 +151,56 @@ export default function RootLayout() {
   // Round-over redirect: if there's a closed round whose flow is unresolved
   // for this player, force the round-over screen. Walks oldest-first via
   // `loadUnresolvedClosedRounds` ordering by round.number ascending.
+  //
+  // Only runs AFTER the boot screen has dismissed so we don't push routes
+  // onto a Stack that hasn't mounted yet, and wraps the async body in a
+  // try/catch so a transient DB/AsyncStorage error can't tear the app down
+  // into a reload loop.
   useEffect(() => {
+    if (!bootDismissed) return;
     if (loading || !session || !couple || !player) return;
     if (!fontsLoaded && !fontError) return;
 
     let cancelled = false;
     (async () => {
-      const rounds = await loadUnresolvedClosedRounds(couple.id, player.id);
-      for (const r of rounds) {
-        // Winner path: unresolved if no tribute picked OR not yet paid.
-        if (r.winner_id === player.id) {
-          if (r.tribute_shop_item_id == null || r.tribute_paid_at == null) {
-            if (cancelled) return;
+      try {
+        const rounds = await loadUnresolvedClosedRounds(couple.id, player.id);
+        for (const r of rounds) {
+          if (cancelled) return;
+          // Winner path: unresolved if no tribute picked OR not yet paid.
+          if (r.winner_id === player.id) {
+            if (r.tribute_shop_item_id == null || r.tribute_paid_at == null) {
+              router.replace({
+                pathname: '/(round)/over',
+                params: { roundId: r.id },
+              });
+              return;
+            }
+            continue;
+          }
+          // Loser / tied participant path: unresolved if not yet locally ack'd.
+          const ack = await AsyncStorage.getItem(
+            ackKeyForRound(player.id, r.id)
+          );
+          if (cancelled) return;
+          if (!ack) {
             router.replace({
               pathname: '/(round)/over',
               params: { roundId: r.id },
             });
             return;
           }
-          // Resolved for winner — keep scanning later rounds.
-          continue;
         }
-        // Loser / tied participant path: unresolved if not yet locally ack'd.
-        const ack = await AsyncStorage.getItem(
-          ackKeyForRound(player.id, r.id)
-        );
-        if (!ack) {
-          if (cancelled) return;
-          router.replace({
-            pathname: '/(round)/over',
-            params: { roundId: r.id },
-          });
-          return;
-        }
+      } catch (e) {
+        // Don't let a redirect failure crash the app. Log and let user proceed
+        // to home; the flow will retry next time a dep changes.
+        console.warn('round-over redirect failed:', e);
       }
     })();
     return () => {
       cancelled = true;
     };
-  }, [loading, fontsLoaded, fontError, session, couple?.id, player?.id, router]);
+  }, [bootDismissed, loading, fontsLoaded, fontError, session, couple?.id, player?.id, router]);
 
   useEffect(() => {
     if (fontsLoaded || fontError) SplashScreen.hideAsync().catch(() => {});

@@ -36,6 +36,10 @@ export async function loadTributeCards(
   tier: TributeTier,
   roundId: string
 ): Promise<ShopItem[]> {
+  // Defensive: callers may pass a null tier in edge cases we didn't anticipate.
+  // Fall back to 'knockout' so we still hand back a sane card set.
+  const safeTier: TributeTier = RANGES[tier] ? tier : 'knockout';
+
   const { data } = await supabase
     .from('shop_items')
     .select('*')
@@ -45,8 +49,8 @@ export async function loadTributeCards(
   const inTier = (it: ShopItem, t: TributeTier) =>
     it.cost >= RANGES[t].min && it.cost <= RANGES[t].max;
 
-  const tierIdx = TIER_ORDER.indexOf(tier);
-  const fallbackOrder: TributeTier[] = [tier];
+  const tierIdx = TIER_ORDER.indexOf(safeTier);
+  const fallbackOrder: TributeTier[] = [safeTier];
   for (let d = 1; d < TIER_ORDER.length; d++) {
     if (tierIdx - d >= 0) fallbackOrder.push(TIER_ORDER[tierIdx - d]);
     if (tierIdx + d < TIER_ORDER.length) fallbackOrder.push(TIER_ORDER[tierIdx + d]);

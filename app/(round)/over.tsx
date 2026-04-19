@@ -32,34 +32,46 @@ export default function RoundOverScreen() {
     if (!params.roundId || !player) return;
     let cancelled = false;
     (async () => {
-      const { data: r } = await supabase
-        .from('rounds')
-        .select('*')
-        .eq('id', params.roundId!)
-        .single<Round>();
-      if (cancelled || !r) return;
-      setRound(r);
-
-      // Load partner name
-      const partnerId =
-        r.winner_id === player.id ? r.loser_id : r.winner_id ?? null;
-      if (partnerId) {
-        const { data: p } = await supabase
-          .from('players')
-          .select('display_name')
-          .eq('id', partnerId)
-          .maybeSingle();
-        if (!cancelled && p) setPartnerName(p.display_name);
-      }
-
-      // Load tribute item if picked
-      if (r.tribute_shop_item_id) {
-        const { data: it } = await supabase
-          .from('shop_items')
+      try {
+        const { data: r } = await supabase
+          .from('rounds')
           .select('*')
-          .eq('id', r.tribute_shop_item_id)
-          .single<ShopItem>();
-        if (!cancelled && it) setTributeItem(it);
+          .eq('id', params.roundId!)
+          .maybeSingle<Round>();
+        if (cancelled) return;
+        if (!r) {
+          // Round not found (race / deleted). Bail gracefully — go home.
+          router.replace('/(tabs)');
+          return;
+        }
+        setRound(r);
+
+        // Load partner name
+        const partnerId =
+          r.winner_id === player.id ? r.loser_id : r.winner_id ?? null;
+        if (partnerId) {
+          const { data: p } = await supabase
+            .from('players')
+            .select('display_name')
+            .eq('id', partnerId)
+            .maybeSingle();
+          if (!cancelled && p) setPartnerName(p.display_name);
+        }
+
+        // Load tribute item if picked
+        if (r.tribute_shop_item_id) {
+          const { data: it } = await supabase
+            .from('shop_items')
+            .select('*')
+            .eq('id', r.tribute_shop_item_id)
+            .maybeSingle<ShopItem>();
+          if (!cancelled && it) setTributeItem(it);
+        }
+      } catch (e) {
+        if (!cancelled) {
+          console.warn('round-over load failed:', e);
+          router.replace('/(tabs)');
+        }
       }
     })();
     return () => {
@@ -77,8 +89,12 @@ export default function RoundOverScreen() {
     if (round.winner_id === player.id) {
       // Winner path
       if (!round.tribute_shop_item_id) {
-        // Need to pick.
-        loadTributeCards(round.tribute_tier!, round.id).then((c) => setCards(c));
+        // Need to pick. tribute_tier should be set when winner_id is set, but
+        // fall back to 'knockout' defensively if it isn't (old row, race, etc.).
+        const tier = round.tribute_tier ?? 'knockout';
+        loadTributeCards(tier, round.id)
+          .then((c) => setCards(c))
+          .catch(() => setCards([]));
         setMode('pick');
       } else if (!round.tribute_paid_at) {
         // Already picked, awaiting collect.
