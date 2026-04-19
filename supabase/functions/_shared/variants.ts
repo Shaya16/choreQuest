@@ -10,7 +10,12 @@ export type TriggerType =
   | 'round_ending'
   | 'round_closed'
   | 'end_of_day'
-  | 'inactivity';
+  | 'inactivity'
+  | 'round_won'
+  | 'round_lost'
+  | 'round_tied'
+  | 'tribute_picked'
+  | 'tribute_paid';
 
 export const VARIANTS: Record<TriggerType, string[]> = {
   lead_flip: [
@@ -48,6 +53,36 @@ export const VARIANTS: Record<TriggerType, string[]> = {
     "haven't seen you in the arena today. something wrong?",
     "0 strikes. {{partner}}: {{partner_count}}. make this right.",
     "3pm. 0 on the board. just checking in 👀",
+  ],
+  round_won: [
+    "🥊 K.O. you took round {{n}} by {{margin}}. pick your tribute.",
+    "🏆 round {{n}}: yours. {{margin}} margin. {{partner}} owes you something.",
+    "👑 round {{n}} done. you up {{margin}}. claim it.",
+    "round {{n}}: locked in. {{margin}} margin. tribute time.",
+  ],
+  round_lost: [
+    "💀 round {{n}} over. {{partner}} won by {{margin}}. they're picking.",
+    "you ate it. {{partner}} took round {{n}} by {{margin}}. brace.",
+    "💀 round {{n}}: cooked. {{margin}} down. tribute incoming.",
+    "{{partner}} just claimed round {{n}}. {{margin}} margin. owe up.",
+  ],
+  round_tied: [
+    "🤝 round {{n}} tied. nobody owes nobody. round {{next}} live.",
+    "🤝 even score on round {{n}}. handshake. round {{next}} starts now.",
+    "round {{n}}: dead heat. respect. fight again, round {{next}}.",
+    "🤝 {{n}}-all stalemate. round {{next}} drops fresh.",
+  ],
+  tribute_picked: [
+    "💀 {{partner}} picked: {{tribute}}. you owe.",
+    "tribute set: {{tribute}}. clock's on you.",
+    "🍽️ {{partner}} called it: {{tribute}}. get to it.",
+    "{{partner}} chose your fate: {{tribute}}.",
+  ],
+  tribute_paid: [
+    "✓ {{partner}} marked {{tribute}} as paid. round closed clean.",
+    "tribute settled: {{tribute}}. respect. next round.",
+    "✓ {{partner}} got their {{tribute}}. you're square.",
+    "paid in full: {{tribute}}. on to the next.",
   ],
 };
 
