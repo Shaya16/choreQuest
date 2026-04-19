@@ -254,9 +254,17 @@ export default function RootLayout() {
 
   useEffect(() => {
     const sub = Notifications.addNotificationResponseReceivedListener((response) => {
-      const data = response.notification.request.content.data as { screen?: string };
+      const data = response.notification.request.content.data as {
+        screen?: string;
+        round_id?: string;
+      };
       if (data?.screen === 'strike_drawer') {
         router.push({ pathname: '/(tabs)', params: { openDrawer: '1' } });
+      } else if (data?.screen === 'round_over' && data.round_id) {
+        router.replace({
+          pathname: '/(round)/over',
+          params: { roundId: data.round_id },
+        });
       }
     });
     return () => sub.remove();
