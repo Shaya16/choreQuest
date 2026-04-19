@@ -92,18 +92,22 @@ export function MoveCard({
               {/* Left rail: payout(s) */}
               <View
                 style={{
-                  width: 56,
+                  width: 76,
                   borderRightWidth: 2,
                   borderRightColor: depleted ? '#4A4A4A' : accentHex,
                   alignItems: 'center',
                   justifyContent: 'center',
                   paddingVertical: 4,
+                  paddingHorizontal: 4,
                   backgroundColor: depleted ? '#0a0a0a' : 'rgba(0,0,0,0.6)',
                 }}
               >
                 {isChore ? (
                   <>
                     <Text
+                      numberOfLines={1}
+                      adjustsFontSizeToFit
+                      minimumFontScale={0.7}
                       style={{
                         fontFamily: 'PressStart2P',
                         color: depleted ? '#4A4A4A' : accentHex,
@@ -113,6 +117,7 @@ export function MoveCard({
                       +{roundPts}
                     </Text>
                     <Text
+                      numberOfLines={1}
                       style={{
                         fontFamily: 'PressStart2P',
                         color: depleted ? '#4A4A4A' : '#FFCC00',
@@ -125,6 +130,9 @@ export function MoveCard({
                   </>
                 ) : (
                   <Text
+                    numberOfLines={1}
+                    adjustsFontSizeToFit
+                    minimumFontScale={0.7}
                     style={{
                       fontFamily: 'PressStart2P',
                       color: depleted ? '#4A4A4A' : '#FFCC00',
