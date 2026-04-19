@@ -23,6 +23,9 @@ type RoundRow = {
   id: string;
   couple_id: string;
   number: number;
+  start_date: string;
+  end_date: string;
+  status: string;
   winner_id: string | null;
   p1_total: number | null;
   p2_total: number | null;
