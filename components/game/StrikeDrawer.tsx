@@ -228,14 +228,33 @@ function WorldGrid({
   todayCounts: Record<string, number>;
   onPick: (world: World) => void;
 }) {
-  // 3 cols × 2 rows
-  const rows: World[][] = [
-    WORLD_ORDER.slice(0, 3),
-    WORLD_ORDER.slice(3, 6),
+  // Household is the hero; the other 5 worlds are satellites in a 3+2 layout.
+  const satelliteWorlds: World[] = WORLD_ORDER.filter((w) => w !== 'household');
+  const satelliteRows: World[][] = [
+    satelliteWorlds.slice(0, 3),
+    satelliteWorlds.slice(3, 5),
   ];
+
+  // Compute household ammo for the hero card.
+  const householdBucket = activities.household ?? [];
+  const householdTotal = householdBucket.reduce(
+    (sum, a) => sum + (a.daily_cap ?? 0),
+    0
+  );
+  const householdUsed = householdBucket.reduce(
+    (sum, a) => sum + Math.min(a.daily_cap ?? 0, todayCounts[a.id] ?? 0),
+    0
+  );
+  const householdAmmo = Math.max(0, householdTotal - householdUsed);
+
   return (
     <View style={{ gap: 8 }}>
-      {rows.map((row, i) => (
+      <HouseholdHeroCard
+        ammo={householdAmmo}
+        totalAmmo={householdTotal}
+        onPress={() => onPick('household')}
+      />
+      {satelliteRows.map((row, i) => (
         <View key={i} style={{ flexDirection: 'row', gap: 8 }}>
           {row.map((w) => {
             const bucket = activities[w] ?? [];
@@ -261,6 +280,147 @@ function WorldGrid({
         </View>
       ))}
     </View>
+  );
+}
+
+/**
+ * Hero variant of the world card, reserved for HOUSEHOLD. Full-row width,
+ * taller, bigger emoji, QUEST banner, and an "EARN ROUND POINTS" subtitle
+ * to signal that chores are the sole path to round wins.
+ */
+function HouseholdHeroCard({
+  ammo,
+  totalAmmo,
+  onPress,
+}: {
+  ammo: number;
+  totalAmmo: number;
+  onPress: () => void;
+}) {
+  const meta = WORLD_META.household;
+  const depleted = ammo === 0;
+  const accent = depleted ? '#4A4A4A' : meta.accentHex;
+  const QUEST_YELLOW = '#FFCC00';
+
+  return (
+    <Pressable onPress={onPress}>
+      {({ pressed }) => (
+        <View style={{ position: 'relative' }}>
+          {/* Drop-shadow slab */}
+          {!pressed && (
+            <View
+              style={{
+                position: 'absolute',
+                top: 3,
+                left: 3,
+                right: -3,
+                bottom: -3,
+                backgroundColor: '#000000',
+              }}
+            />
+          )}
+
+          {/* Card face */}
+          <View
+            style={{
+              transform: [
+                { translateX: pressed ? 3 : 0 },
+                { translateY: pressed ? 3 : 0 },
+              ],
+              backgroundColor: depleted ? '#0a0a0a' : '#000000',
+              borderWidth: 3,
+              borderColor: accent,
+              paddingVertical: 14,
+              paddingHorizontal: 12,
+              alignItems: 'center',
+              minHeight: 160,
+              opacity: depleted ? 0.7 : 1,
+            }}
+          >
+            <CornerBracket position="top-left" color={accent} />
+            <CornerBracket position="top-right" color={accent} />
+            <CornerBracket position="bottom-left" color={accent} />
+            <CornerBracket position="bottom-right" color={accent} />
+
+            {/* QUEST banner (yellow for contrast against black + blue border) */}
+            <Text
+              style={{
+                fontFamily: 'PressStart2P',
+                color: depleted ? '#4A4A4A' : QUEST_YELLOW,
+                fontSize: 9,
+                letterSpacing: 2,
+                marginBottom: 8,
+              }}
+            >
+              ⚔ QUEST ⚔
+            </Text>
+
+            {/* Big emoji with idle float */}
+            <MotiView
+              from={{ translateY: 0 }}
+              animate={{ translateY: depleted ? 0 : -2 }}
+              transition={{
+                type: 'timing',
+                duration: 900,
+                loop: !depleted,
+                repeatReverse: true,
+              }}
+            >
+              <Text style={{ fontSize: 48 }}>{meta.emoji}</Text>
+            </MotiView>
+
+            {/* Label */}
+            <Text
+              style={{
+                fontFamily: 'PressStart2P',
+                color: accent,
+                fontSize: 12,
+                marginTop: 8,
+                letterSpacing: 2,
+              }}
+            >
+              {meta.shortLabel}
+            </Text>
+
+            {/* Subtitle */}
+            <Text
+              style={{
+                fontFamily: 'Silkscreen',
+                color: depleted ? '#4A4A4A' : '#8A8A8A',
+                fontSize: 8,
+                marginTop: 4,
+                letterSpacing: 2,
+              }}
+            >
+              EARN ROUND POINTS
+            </Text>
+
+            {/* Ammo pill — white text on blue accent reads better than black */}
+            <View
+              style={{
+                marginTop: 10,
+                backgroundColor: depleted ? '#0a0a0a' : accent,
+                paddingHorizontal: 10,
+                paddingVertical: 3,
+                borderWidth: 1,
+                borderColor: accent,
+              }}
+            >
+              <Text
+                style={{
+                  fontFamily: 'PressStart2P',
+                  color: depleted ? accent : '#FFFFFF',
+                  fontSize: 10,
+                  letterSpacing: 1,
+                }}
+              >
+                {depleted ? 'DEPLETED' : `${ammo}/${totalAmmo} AMMO`}
+              </Text>
+            </View>
+          </View>
+        </View>
+      )}
+    </Pressable>
   );
 }
 
