@@ -11,6 +11,7 @@ import { supabase } from '@/lib/supabase';
 import { useSession } from '@/lib/store';
 import { loadActivities } from '@/lib/logger';
 import { preloadAssets } from '@/lib/preload';
+import { registerPushToken } from '@/lib/notifications';
 import type { Player, Couple } from '@/lib/types';
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
@@ -76,6 +77,9 @@ export default function RootLayout() {
 
       if (!mounted) return;
       setPlayer(playerRow ?? null);
+      if (playerRow) {
+        void registerPushToken(playerRow.id);
+      }
 
       if (playerRow?.couple_id) {
         const { data: coupleRow } = await supabase
