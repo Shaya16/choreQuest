@@ -17,7 +17,7 @@ import { useRoundView } from '@/lib/useRoundView';
 import { useSession } from '@/lib/store';
 import { supabase } from '@/lib/supabase';
 import { clearPushToken, registerPushToken } from '@/lib/notifications';
-import { forceCloseCurrentRound } from '@/lib/tribute';
+import { forceCloseCurrentRound, loadTributeCards, pickTribute } from '@/lib/tribute';
 import { ensureActiveRound } from '@/lib/round';
 import type { Activity, Log, Player, Round } from '@/lib/types';
 
@@ -225,15 +225,43 @@ export default function MenuScreen() {
       return;
     }
 
+    // If the STUB won and hasn't "picked" a tribute yet, auto-pick one
+    // before navigating. Stubs can't tap through the card UI themselves, so
+    // the loser-path flow on the user's side would stall forever otherwise.
+    let autoPickedName: string | null = null;
+    if (
+      target.winner_id != null &&
+      target.winner_id !== player.id &&
+      target.tribute_tier != null &&
+      target.tribute_shop_item_id == null
+    ) {
+      try {
+        const cards = await loadTributeCards(target.tribute_tier, target.id);
+        if (cards.length > 0) {
+          const choice = cards[Math.floor(Math.random() * cards.length)];
+          await pickTribute(target.id, choice.id);
+          target.tribute_shop_item_id = choice.id;
+          autoPickedName = choice.name;
+        }
+      } catch (e) {
+        // Non-fatal: if auto-pick fails, the acknowledge screen will still
+        // show the "partner is picking…" placeholder and we can retry later.
+        console.warn('auto-pick stub tribute failed:', e);
+      }
+    }
+
     const winnerLabel =
       target.winner_id == null
         ? 'TIED (nobody)'
         : target.winner_id === player.id
         ? 'YOU'
         : 'partner';
+    const autoPickSuffix = autoPickedName
+      ? `\n\n${p2?.display_name ?? 'stub'} demands: ${autoPickedName}`
+      : '';
     Alert.alert(
       'Navigating to round-over',
-      `R${target.number} · winner=${winnerLabel} · tier=${target.tribute_tier ?? 'null'}`,
+      `R${target.number} · winner=${winnerLabel} · tier=${target.tribute_tier ?? 'null'}${autoPickSuffix}`,
       [
         {
           text: 'Go',
