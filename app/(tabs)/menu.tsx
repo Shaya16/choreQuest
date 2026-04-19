@@ -42,6 +42,7 @@ export default function MenuScreen() {
   const [closeBusy, setCloseBusy] = useState(false);
   const [injectBusy, setInjectBusy] = useState(false);
   const [fakePayBusy, setFakePayBusy] = useState(false);
+  const [resetBusy, setResetBusy] = useState(false);
 
   const [notifEnabled, setNotifEnabled] = useState<boolean>(!!player?.expo_push_token);
 
@@ -204,6 +205,35 @@ export default function MenuScreen() {
       );
     } finally {
       setFakePayBusy(false);
+    }
+  }
+
+  async function handleResetTodayLogs() {
+    if (!couple) {
+      Alert.alert('Reset failed', 'Not paired yet.');
+      return;
+    }
+    setResetBusy(true);
+    try {
+      const { data, error } = await supabase.rpc('dev_reset_today_logs');
+      if (error) {
+        Alert.alert('Reset failed', error.message);
+        return;
+      }
+      const deleted = typeof data === 'number' ? data : 0;
+      Alert.alert(
+        'Reset',
+        deleted > 0
+          ? `Deleted ${deleted} log${deleted === 1 ? '' : 's'} from today. Ammo restored.`
+          : 'Nothing logged today — nothing to delete.'
+      );
+    } catch (e) {
+      Alert.alert(
+        'Reset failed',
+        e instanceof Error ? e.message : String(e)
+      );
+    } finally {
+      setResetBusy(false);
     }
   }
 
@@ -603,6 +633,28 @@ export default function MenuScreen() {
               }}
             >
               🛠 FAKE STUB COLLECT (CLEAR DEBT)
+            </Text>
+          </Pressable>
+          <View style={{ height: 8 }} />
+          <Pressable
+            onPress={handleResetTodayLogs}
+            disabled={resetBusy}
+            style={{
+              borderWidth: 2,
+              borderColor: '#00DDFF',
+              padding: 12,
+              opacity: resetBusy ? 0.5 : 1,
+            }}
+          >
+            <Text
+              style={{
+                fontFamily: 'PressStart2P',
+                color: '#00DDFF',
+                fontSize: 9,
+                textAlign: 'center',
+              }}
+            >
+              🛠 RESET TODAY&apos;S LOGS
             </Text>
           </Pressable>
         </View>

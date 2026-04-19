@@ -288,6 +288,10 @@ export type Database = {
         Args: { p_activity_id: string };
         Returns: Log;
       };
+      dev_reset_today_logs: {
+        Args: Record<string, never>;
+        Returns: number;
+      };
     };
     Enums: Record<string, never>;
     CompositeTypes: Record<string, never>;
