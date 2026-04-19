@@ -275,6 +275,10 @@ export type Database = {
         Args: Record<string, never>;
         Returns: number;
       };
+      dev_force_close_round: {
+        Args: Record<string, never>;
+        Returns: Round;
+      };
     };
     Enums: Record<string, never>;
     CompositeTypes: Record<string, never>;
