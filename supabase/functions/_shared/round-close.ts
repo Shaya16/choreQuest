@@ -6,13 +6,16 @@ import {
 
 export type LogForClose = {
   player_id: string;
-  coins_earned: number;
+  round_value_earned: number;
   world: string;
 };
+
+export type CloseStatus = 'closed' | 'inactive';
 
 export type CloseResult =
   | {
       skipReason: 'solo_couple';
+      status?: never;
       p1Total?: never;
       p2Total?: never;
       winnerId?: never;
@@ -24,6 +27,7 @@ export type CloseResult =
     }
   | {
       skipReason?: never;
+      status: CloseStatus;
       p1Total: number;
       p2Total: number;
       winnerId: string | null;
@@ -36,6 +40,8 @@ export type CloseResult =
 
 const BONUS_RATE = 0.25;
 const BONUS_CAP = 500;
+const DEAD_ROUND_THRESHOLD = 50;
+const HOUSEHOLD_WORLD = 'household';
 
 export function computeCloseResult(input: {
   p1Id: string;
@@ -44,34 +50,66 @@ export function computeCloseResult(input: {
 }): CloseResult {
   if (!input.p2Id) return { skipReason: 'solo_couple' };
 
-  // Per-player totals
   let p1Total = 0;
   let p2Total = 0;
   for (const l of input.logs) {
-    if (l.player_id === input.p1Id) p1Total += l.coins_earned ?? 0;
-    else if (l.player_id === input.p2Id) p2Total += l.coins_earned ?? 0;
+    if (l.player_id === input.p1Id) p1Total += l.round_value_earned ?? 0;
+    else if (l.player_id === input.p2Id) p2Total += l.round_value_earned ?? 0;
   }
 
-  // Crowns: per-world winner by score
-  const worldScores = new Map<string, { p1: number; p2: number }>();
+  // Crowns: per-world winner.
+  //   - Household: by round_value_earned (only world with chore points).
+  //   - Other worlds: by log count (dominance/engagement) since non-household
+  //     logs have round_value_earned = 0 under dual-currency.
+  // Ties → no crown awarded for that world.
+  const worldStats = new Map<
+    string,
+    { p1Value: number; p2Value: number; p1Logs: number; p2Logs: number }
+  >();
   for (const l of input.logs) {
-    const ws = worldScores.get(l.world) ?? { p1: 0, p2: 0 };
-    if (l.player_id === input.p1Id) ws.p1 += l.coins_earned ?? 0;
-    else if (l.player_id === input.p2Id) ws.p2 += l.coins_earned ?? 0;
-    worldScores.set(l.world, ws);
+    const ws = worldStats.get(l.world) ?? {
+      p1Value: 0,
+      p2Value: 0,
+      p1Logs: 0,
+      p2Logs: 0,
+    };
+    if (l.player_id === input.p1Id) {
+      ws.p1Value += l.round_value_earned ?? 0;
+      ws.p1Logs++;
+    } else if (l.player_id === input.p2Id) {
+      ws.p2Value += l.round_value_earned ?? 0;
+      ws.p2Logs++;
+    }
+    worldStats.set(l.world, ws);
   }
   const crownsJson: Record<string, string> = {};
   let p1WorldCount = 0;
   let p2WorldCount = 0;
-  for (const [world, scores] of worldScores) {
-    if (scores.p1 > scores.p2) {
+  for (const [world, stats] of worldStats) {
+    const p1Metric = world === HOUSEHOLD_WORLD ? stats.p1Value : stats.p1Logs;
+    const p2Metric = world === HOUSEHOLD_WORLD ? stats.p2Value : stats.p2Logs;
+    if (p1Metric > p2Metric) {
       crownsJson[world] = input.p1Id;
       p1WorldCount++;
-    } else if (scores.p2 > scores.p1) {
+    } else if (p2Metric > p1Metric) {
       crownsJson[world] = input.p2Id;
       p2WorldCount++;
     }
-    // ties on a world: no crown awarded for that world
+  }
+
+  // Dead-round check: if neither player cleared the threshold, close INACTIVE.
+  if (Math.max(p1Total, p2Total) < DEAD_ROUND_THRESHOLD) {
+    return {
+      status: 'inactive',
+      p1Total,
+      p2Total,
+      winnerId: null,
+      loserId: null,
+      margin: 0,
+      tributeTier: null,
+      winnerBonusCoins: 0,
+      crownsJson,
+    };
   }
 
   const margin = Math.abs(p1Total - p2Total);
@@ -104,7 +142,7 @@ export function computeCloseResult(input: {
       tierForFlawlessOverride({
         loserLogCount,
         winnerWorldCount,
-        totalContestedWorlds: worldScores.size,
+        totalContestedWorlds: worldStats.size,
       }) ?? tierForMargin(margin);
   }
 
@@ -113,6 +151,7 @@ export function computeCloseResult(input: {
     : 0;
 
   return {
+    status: 'closed',
     p1Total,
     p2Total,
     winnerId,
