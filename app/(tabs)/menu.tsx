@@ -176,27 +176,28 @@ export default function MenuScreen() {
     }
     setFakePayBusy(true);
     try {
-      // Find the most recent unpaid tribute round for this couple (picked but
-      // not paid). Doesn't matter who won; we just close the loop so the user
-      // can see the debt clear.
+      // Clear ALL unpaid tribute rounds for the couple so the home OWED/
+      // COLLECT tiles go away in one tap — testing produces stacks of stale
+      // unresolved debts.
       const { data: rows } = await supabase
         .from('rounds')
-        .select('id, number, winner_id, tribute_shop_item_id, tribute_paid_at')
+        .select('id, number')
         .eq('couple_id', couple.id)
         .eq('status', 'closed')
         .not('tribute_shop_item_id', 'is', null)
-        .is('tribute_paid_at', null)
-        .order('number', { ascending: false })
-        .limit(1);
-      const r = rows?.[0];
-      if (!r) {
+        .is('tribute_paid_at', null);
+      const unpaid = (rows ?? []) as { id: string; number: number }[];
+      if (unpaid.length === 0) {
         Alert.alert('Fake collect', 'Nothing unpaid to clear.');
         return;
       }
-      await markTributePaid(r.id);
+      for (const r of unpaid) {
+        await markTributePaid(r.id);
+      }
+      const numbers = unpaid.map((r) => `R${r.number}`).join(', ');
       Alert.alert(
         'Fake collect',
-        `R${r.number} marked paid on the stub's behalf. Home should clear.`
+        `Marked paid: ${numbers}. Home should clear.`
       );
     } catch (e) {
       Alert.alert(
