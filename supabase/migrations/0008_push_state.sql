@@ -37,9 +37,8 @@ alter table public.push_state enable row level security;
 create policy "push_state: players see own"
   on public.push_state
   for select
-  using (
-    player_id in (select id from public.players where user_id = auth.uid())
-  );
+  to authenticated
+  using (player_id = current_user_player_id());
 
 -- Only service role writes (Edge Functions run as service role).
 -- Deny policy absence = default deny for insert/update/delete by non-service-role.
