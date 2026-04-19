@@ -237,9 +237,10 @@ export default function RootLayout() {
   }, [couple?.id, player?.id]);
 
   useEffect(() => {
-    if (!player || !partner) return;
+    if (!player?.id || !partner?.id) return;
+    const suffix = Math.random().toString(36).slice(2, 10);
     const channel = supabase
-      .channel(`banner-${player.id}-${partner.id}`)
+      .channel(`banner-${player.id}-${partner.id}-${suffix}`)
       .on(
         'postgres_changes',
         {
@@ -266,7 +267,7 @@ export default function RootLayout() {
       )
       .subscribe();
     return () => {
-      void channel.unsubscribe();
+      void supabase.removeChannel(channel);
     };
   }, [player?.id, partner?.id]);
 

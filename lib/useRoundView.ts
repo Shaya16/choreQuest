@@ -160,10 +160,17 @@ export function useRoundView(couple: Couple | null): RoundView {
 
   // Realtime logs subscription. Folds inserts through applyLog so local
   // optimistic applies dedupe against their own echo.
+  //
+  // Deps are `couple?.id` only. Depending on `couple` the object would
+  // re-fire any time Zustand swaps the couple reference, racing teardown
+  // against the Supabase channel cache and producing "cannot add
+  // postgres_changes callbacks after subscribe()". `applyLog` is stable via
+  // useCallback([]) so it's safe to drop from deps.
   useEffect(() => {
-    if (!couple) return;
+    if (!couple?.id) return;
+    const suffix = Math.random().toString(36).slice(2, 10);
     const channel = supabase
-      .channel(`round-logs-${couple.id}-${channelIdRef.current}`)
+      .channel(`round-logs-${couple.id}-${channelIdRef.current}-${suffix}`)
       .on(
         'postgres_changes',
         {
@@ -180,7 +187,7 @@ export function useRoundView(couple: Couple | null): RoundView {
     return () => {
       void supabase.removeChannel(channel);
     };
-  }, [couple, applyLog]);
+  }, [couple?.id]);
 
   // Countdown tick. Skip if we don't have a round yet — otherwise we'd
   // overwrite a live countdown with 0m during a transient null-round state.

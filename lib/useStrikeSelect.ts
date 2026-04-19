@@ -91,10 +91,18 @@ export function useStrikeSelect(
   }, [refresh]);
 
   // Realtime: if a log row arrives for us, bump our local counts/haul.
+  //
+  // Deps are `player?.id` only — `[player]` would re-fire every time Zustand
+  // swaps the player object (combo_multiplier bump, etc.) and Supabase's
+  // channel cache would return the previously-subscribed channel, making the
+  // subsequent `.on()` throw "cannot add postgres_changes callbacks after
+  // subscribe()". We also suffix the channel name with a per-mount random id
+  // so a stale cached channel from a fast-refresh never collides.
   useEffect(() => {
-    if (!player) return;
+    if (!player?.id) return;
+    const suffix = Math.random().toString(36).slice(2, 10);
     const channel = supabase
-      .channel(`strike-select-${player.id}`)
+      .channel(`strike-select-${player.id}-${suffix}`)
       .on(
         'postgres_changes',
         {
@@ -120,7 +128,7 @@ export function useStrikeSelect(
     return () => {
       void supabase.removeChannel(channel);
     };
-  }, [player]);
+  }, [player?.id]);
 
   const strike = useCallback(
     async (activity: Activity): Promise<Log | null> => {
