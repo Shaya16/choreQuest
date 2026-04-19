@@ -25,6 +25,7 @@ export function HoldToCollect({ label, accentHex, onComplete }: Props) {
   const progress = useSharedValue(0);
   const [holding, setHolding] = useState(false);
   const completedRef = useRef(false);
+  const holdingRef = useRef(false);
   const hapticTimer = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const fillStyle = useAnimatedStyle(() => ({
@@ -33,6 +34,7 @@ export function HoldToCollect({ label, accentHex, onComplete }: Props) {
 
   function startHold() {
     completedRef.current = false;
+    holdingRef.current = true;
     setHolding(true);
     progress.value = withTiming(
       1,
@@ -55,7 +57,7 @@ export function HoldToCollect({ label, accentHex, onComplete }: Props) {
 
     // Schedule completion on the JS thread (matches the worklet's duration).
     setTimeout(() => {
-      if (!completedRef.current && holding) {
+      if (!completedRef.current && holdingRef.current) {
         completedRef.current = true;
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         clearTimer();
@@ -65,6 +67,7 @@ export function HoldToCollect({ label, accentHex, onComplete }: Props) {
   }
 
   function endHold() {
+    holdingRef.current = false;
     setHolding(false);
     if (!completedRef.current) {
       cancelAnimation(progress);
