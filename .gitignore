@@ -42,3 +42,6 @@ yarn-error.*
 
 # Supabase CLI local state
 supabase/.temp/
+
+# Git worktrees (project-local isolated workspaces)
+.worktrees/
