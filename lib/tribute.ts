@@ -141,12 +141,33 @@ export function ackKeyForRound(playerId: string, roundId: string): string {
 export async function forceCloseCurrentRound(): Promise<{ ok: boolean; error?: string }> {
   // Backdate end_date so the round looks "due"...
   const { error: rpcError } = await supabase.rpc('dev_force_close_round');
-  if (rpcError) return { ok: false, error: rpcError.message };
+  if (rpcError) return { ok: false, error: `rpc: ${rpcError.message}` };
   // ...then immediately invoke the edge function so the close + push happens
   // now instead of waiting up to 10 min for the next pg_cron tick.
-  const { error: fnError } = await supabase.functions.invoke('round-rollover-tick', {
-    body: {},
-  });
-  if (fnError) return { ok: false, error: `invoke failed: ${fnError.message}` };
+  const { data, error: fnError } = await supabase.functions.invoke<{
+    ok: boolean;
+    error?: string;
+    closed?: number;
+    errors?: string[];
+  }>('round-rollover-tick', { body: {} });
+  if (fnError) {
+    // FunctionsHttpError carries the response; dig for the body if available.
+    const context = (fnError as unknown as { context?: Response }).context;
+    if (context && typeof (context as Response).text === 'function') {
+      try {
+        const body = await (context as Response).text();
+        return { ok: false, error: `invoke ${fnError.message}: ${body.slice(0, 300)}` };
+      } catch {
+        // fall through to generic message
+      }
+    }
+    return { ok: false, error: `invoke: ${fnError.message}` };
+  }
+  if (data && data.ok === false) {
+    return { ok: false, error: `function: ${data.error ?? 'unknown error'}` };
+  }
+  if (data && data.errors && data.errors.length > 0) {
+    return { ok: false, error: `round errors: ${data.errors.join('; ').slice(0, 300)}` };
+  }
   return { ok: true };
 }

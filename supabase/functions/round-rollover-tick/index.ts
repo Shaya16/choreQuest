@@ -27,28 +27,47 @@ type PlayerRow = {
 };
 
 Deno.serve(async () => {
-  const admin = createClient(
-    Deno.env.get('SUPABASE_URL')!,
-    Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
-  );
+  try {
+    const admin = createClient(
+      Deno.env.get('SUPABASE_URL')!,
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+    );
 
-  const todayJerusalem = new Intl.DateTimeFormat('en-CA', {
-    timeZone: PRIMARY_TZ,
-  }).format(new Date());
+    const todayJerusalem = new Intl.DateTimeFormat('en-CA', {
+      timeZone: PRIMARY_TZ,
+    }).format(new Date());
 
-  // Find every active round whose end_date has passed in Jerusalem.
-  const { data: dueRounds } = await admin
-    .from('rounds')
-    .select('*')
-    .eq('status', 'active')
-    .lt('end_date', todayJerusalem);
+    // Find every active round whose end_date has passed in Jerusalem.
+    const { data: dueRounds, error: dueErr } = await admin
+      .from('rounds')
+      .select('*')
+      .eq('status', 'active')
+      .lt('end_date', todayJerusalem);
+    if (dueErr) throw new Error(`dueRounds query: ${dueErr.message}`);
 
-  let closedCount = 0;
-  for (const round of (dueRounds ?? []) as RoundRow[]) {
-    const closed = await closeOneRound(admin, round);
-    if (closed) closedCount++;
+    let closedCount = 0;
+    const errors: string[] = [];
+    for (const round of (dueRounds ?? []) as RoundRow[]) {
+      try {
+        const closed = await closeOneRound(admin, round);
+        if (closed) closedCount++;
+      } catch (e) {
+        errors.push(`round ${round.id}: ${e instanceof Error ? e.message : String(e)}`);
+      }
+    }
+    return new Response(
+      JSON.stringify({ ok: true, closed: closedCount, errors }),
+      { status: 200, headers: { 'Content-Type': 'application/json' } }
+    );
+  } catch (e) {
+    const message = e instanceof Error ? e.message : String(e);
+    const stack = e instanceof Error ? e.stack ?? '' : '';
+    console.error('round-rollover-tick top-level error:', message, stack);
+    return new Response(
+      JSON.stringify({ ok: false, error: message, stack }),
+      { status: 500, headers: { 'Content-Type': 'application/json' } }
+    );
   }
-  return new Response(`closed=${closedCount}`, { status: 200 });
 });
 
 async function closeOneRound(admin: SupabaseClient, round: RoundRow): Promise<boolean> {
