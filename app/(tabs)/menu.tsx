@@ -97,10 +97,9 @@ export default function MenuScreen() {
       Alert.alert('Force close failed', error ?? 'Unknown error.');
       return;
     }
-    Alert.alert(
-      'Round backdated',
-      'End_date set to yesterday. The next pg_cron tick (within 10 min) will close it. Or invoke round-rollover-tick directly via the Supabase dashboard.'
-    );
+    // Round is closed. Close the Menu modal so the root-layout redirect
+    // picks up the unresolved round and pushes us into the KO cinematic.
+    router.back();
   }
 
   return (

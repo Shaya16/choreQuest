@@ -139,7 +139,14 @@ export function ackKeyForRound(playerId: string, roundId: string): string {
  * it. For the dev FORCE CLOSE button.
  */
 export async function forceCloseCurrentRound(): Promise<{ ok: boolean; error?: string }> {
-  const { error } = await supabase.rpc('dev_force_close_round');
-  if (error) return { ok: false, error: error.message };
+  // Backdate end_date so the round looks "due"...
+  const { error: rpcError } = await supabase.rpc('dev_force_close_round');
+  if (rpcError) return { ok: false, error: rpcError.message };
+  // ...then immediately invoke the edge function so the close + push happens
+  // now instead of waiting up to 10 min for the next pg_cron tick.
+  const { error: fnError } = await supabase.functions.invoke('round-rollover-tick', {
+    body: {},
+  });
+  if (fnError) return { ok: false, error: `invoke failed: ${fnError.message}` };
   return { ok: true };
 }

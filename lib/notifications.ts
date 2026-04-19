@@ -45,10 +45,12 @@ export async function registerPushToken(playerId: string): Promise<string | null
   const projectId =
     Constants.expoConfig?.extra?.eas?.projectId ??
     Constants.easConfig?.projectId;
+  // Without an EAS projectId, getExpoPushTokenAsync throws on real devices.
+  // Bail quietly — the app still works; pushes just won't land until EAS is
+  // set up (run `eas init` and add the id to app.json's extra.eas.projectId).
+  if (!projectId) return null;
   const token = (
-    await Notifications.getExpoPushTokenAsync(
-      projectId ? { projectId } : undefined
-    )
+    await Notifications.getExpoPushTokenAsync({ projectId })
   ).data;
 
   await supabase
