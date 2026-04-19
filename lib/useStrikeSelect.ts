@@ -124,11 +124,26 @@ export function useStrikeSelect(
           }));
         }
       )
+      .on(
+        'postgres_changes',
+        {
+          event: 'DELETE',
+          schema: 'public',
+          table: 'logs',
+        },
+        () => {
+          // DELETE payloads only carry PK by default (REPLICA IDENTITY DEFAULT),
+          // so we can't tell locally which activity lost a log. Re-fetch from
+          // server; authoritative. Bulk deletes (dev_reset_today_logs) cause
+          // N rapid refreshes, which is fine — refresh is idempotent.
+          void refresh();
+        }
+      )
       .subscribe();
     return () => {
       void supabase.removeChannel(channel);
     };
-  }, [player?.id]);
+  }, [player?.id, refresh]);
 
   const strike = useCallback(
     async (activity: Activity): Promise<Log | null> => {
