@@ -1,8 +1,10 @@
 // =============================================================================
 // Fires push notifications in response to log inserts and round-status flips.
-// Receives one of two payloads from Postgres triggers (via pg_net):
-//   { record: LogRow }                    — event-driven triggers on strike
-//   { type: 'round_closed', round: ... }  — round close transition
+// Receives one of four payloads from Postgres triggers (via pg_net):
+//   { record: LogRow }                      — event-driven triggers on strike
+//   { type: 'round_closed', round: ... }    — round close transition
+//   { type: 'tribute_picked', round: ... }  — winner picked tribute (push to loser)
+//   { type: 'tribute_paid', round: ... }    — winner confirmed received (closure beat)
 // =============================================================================
 import { createClient, SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { VARIANTS, TriggerType } from '../_shared/variants.ts';
@@ -27,14 +29,23 @@ type RoundRow = {
   end_date: string;
   status: string;
   winner_id: string | null;
+  loser_id: string | null;
   p1_total: number | null;
   p2_total: number | null;
   margin: number | null;
+  tribute_shop_item_id: string | null;
+  tribute_paid_at: string | null;
 };
 
 type LogInsertPayload = { record: LogRow };
 type RoundClosedPayload = { type: 'round_closed'; round: RoundRow };
-type DispatchPayload = LogInsertPayload | RoundClosedPayload;
+type TributePickedPayload = { type: 'tribute_picked'; round: RoundRow };
+type TributePaidPayload = { type: 'tribute_paid'; round: RoundRow };
+type DispatchPayload =
+  | LogInsertPayload
+  | RoundClosedPayload
+  | TributePickedPayload
+  | TributePaidPayload;
 
 type TargetPlayer = {
   id: string;
@@ -57,9 +68,19 @@ Deno.serve(async (req: Request) => {
     return new Response('invalid json', { status: 400 });
   }
 
-  if ('type' in payload && payload.type === 'round_closed') {
-    await handleRoundClosed(admin, payload);
-    return new Response('ok', { status: 200 });
+  if ('type' in payload) {
+    if (payload.type === 'round_closed') {
+      await handleRoundClosed(admin, payload);
+      return new Response('ok', { status: 200 });
+    }
+    if (payload.type === 'tribute_picked') {
+      await handleTributePicked(admin, payload.round);
+      return new Response('ok', { status: 200 });
+    }
+    if (payload.type === 'tribute_paid') {
+      await handleTributePaid(admin, payload.round);
+      return new Response('ok', { status: 200 });
+    }
   }
 
   const log = (payload as LogInsertPayload).record;
@@ -283,4 +304,123 @@ async function fireOncePerRound(
     vars
   );
   await deliverPush(admin, target, trigger, text, index, { round_id: roundId });
+}
+
+async function handleTributePicked(admin: SupabaseClient, round: RoundRow): Promise<void> {
+  if (!round.loser_id || !round.tribute_shop_item_id) return;
+  if (isQuietHours()) return;
+
+  const [{ data: loser }, { data: winner }, { data: item }] = await Promise.all([
+    admin
+      .from('players')
+      .select('id, display_name, expo_push_token')
+      .eq('id', round.loser_id)
+      .maybeSingle(),
+    round.winner_id
+      ? admin
+          .from('players')
+          .select('id, display_name')
+          .eq('id', round.winner_id)
+          .maybeSingle()
+      : Promise.resolve({ data: null }),
+    admin
+      .from('shop_items')
+      .select('name')
+      .eq('id', round.tribute_shop_item_id)
+      .maybeSingle(),
+  ]);
+
+  if (!loser?.expo_push_token) return;
+
+  const lastIndex = await readLastIndex(admin, loser.id, 'tribute_picked');
+  const pick = pickVariant(VARIANTS.tribute_picked, lastIndex, {
+    partner: winner?.display_name ?? 'partner',
+    tribute: item?.name ?? 'a tribute',
+  });
+  await sendPush({
+    to: loser.expo_push_token,
+    title: 'TRIBUTE PICKED',
+    body: pick.text,
+    data: { screen: 'round_over', round_id: round.id },
+  });
+  await writeLastIndex(admin, loser.id, 'tribute_picked', pick.index);
+}
+
+async function handleTributePaid(admin: SupabaseClient, round: RoundRow): Promise<void> {
+  if (!round.winner_id || !round.tribute_shop_item_id) return;
+  if (isQuietHours()) return;
+
+  const [{ data: winner }, { data: loser }, { data: item }] = await Promise.all([
+    admin
+      .from('players')
+      .select('id, display_name, expo_push_token')
+      .eq('id', round.winner_id)
+      .maybeSingle(),
+    round.loser_id
+      ? admin
+          .from('players')
+          .select('id, display_name, expo_push_token')
+          .eq('id', round.loser_id)
+          .maybeSingle()
+      : Promise.resolve({ data: null }),
+    admin
+      .from('shop_items')
+      .select('name')
+      .eq('id', round.tribute_shop_item_id)
+      .maybeSingle(),
+  ]);
+
+  // The tribute_paid push goes to the LOSER as a closure beat
+  // ("you're square"). Winner already saw the haptic in-app on collect.
+  if (!loser?.expo_push_token && !winner?.expo_push_token) return;
+  const target = loser?.expo_push_token ? loser : winner;
+  if (!target?.expo_push_token) return;
+  const partnerName =
+    target.id === loser?.id ? winner?.display_name ?? 'partner' : loser?.display_name ?? 'partner';
+
+  const lastIndex = await readLastIndex(admin, target.id, 'tribute_paid');
+  const pick = pickVariant(VARIANTS.tribute_paid, lastIndex, {
+    partner: partnerName,
+    tribute: item?.name ?? 'tribute',
+  });
+  await sendPush({
+    to: target.expo_push_token,
+    title: 'TRIBUTE PAID',
+    body: pick.text,
+    data: { screen: 'home' },
+  });
+  await writeLastIndex(admin, target.id, 'tribute_paid', pick.index);
+}
+
+async function readLastIndex(
+  admin: SupabaseClient,
+  playerId: string,
+  triggerType: string
+): Promise<number | null> {
+  const { data } = await admin
+    .from('push_state')
+    .select('last_variant_index')
+    .eq('player_id', playerId)
+    .eq('trigger_type', triggerType)
+    .maybeSingle();
+  return (data?.last_variant_index ?? null) as number | null;
+}
+
+async function writeLastIndex(
+  admin: SupabaseClient,
+  playerId: string,
+  triggerType: string,
+  index: number
+): Promise<void> {
+  await admin
+    .from('push_state')
+    .upsert(
+      {
+        player_id: playerId,
+        trigger_type: triggerType,
+        last_variant_index: index,
+        last_fired_at: new Date().toISOString(),
+      },
+      { onConflict: 'player_id,trigger_type' }
+    );
 }
