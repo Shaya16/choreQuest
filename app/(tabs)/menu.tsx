@@ -152,9 +152,15 @@ export default function MenuScreen() {
       return;
     }
 
+    const winnerLabel =
+      target.winner_id == null
+        ? 'TIED (nobody)'
+        : target.winner_id === player.id
+        ? 'YOU'
+        : 'partner';
     Alert.alert(
       'Navigating to round-over',
-      `R${target.number} · winner=${target.winner_id === player.id ? 'YOU' : 'partner'} · tier=${target.tribute_tier ?? 'null'}`,
+      `R${target.number} · winner=${winnerLabel} · tier=${target.tribute_tier ?? 'null'}`,
       [
         {
           text: 'Go',
