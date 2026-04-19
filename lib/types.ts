@@ -176,7 +176,12 @@ export type PushTriggerType =
   | 'round_ending'
   | 'round_closed'
   | 'end_of_day'
-  | 'inactivity';
+  | 'inactivity'
+  | 'round_won'
+  | 'round_lost'
+  | 'round_tied'
+  | 'tribute_picked'
+  | 'tribute_paid';
 
 export type PushState = {
   player_id: string;
