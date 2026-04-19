@@ -1,66 +1,156 @@
 import { Pressable, Text, View } from 'react-native';
+import { MotiView } from 'moti';
 import * as Haptics from 'expo-haptics';
 
+import { accentForCategory, formatCoins, tierForCost } from '@/lib/shop-format';
 import type { ShopItem } from '@/lib/types';
 
 type Props = {
   item: ShopItem;
+  width: number; // computed by parent (screen width / 2 - margins)
   affordable: boolean;
   disabledReason: 'afford' | 'partner' | null;
+  shortfall: number; // coins needed beyond what player has; 0 if affordable
   onPress: (item: ShopItem) => void;
 };
 
 /**
- * One catalog tile. Affordable → crisp, tappable. Unaffordable or
- * partnerless → dimmed, tap surfaces the reason via an alert in the parent
- * (we just haptic-buzz here). No purchase modal is shown from this card;
- * the parent owns the confirm flow.
+ * One catalog item card. Category accent on the top shelf and price-tag
+ * footer; cost-tier border weight; locked variant shows the delta to
+ * unlock so unaffordable items remain motivating, not just dimmed.
  */
-export function PurchaseCard({ item, affordable, disabledReason, onPress }: Props) {
-  const disabled = !affordable || disabledReason === 'partner';
+export function PurchaseCard({
+  item,
+  width,
+  affordable,
+  disabledReason,
+  shortfall,
+  onPress,
+}: Props) {
+  const accent = accentForCategory(item.category);
+  const tier = tierForCost(item.cost);
+  const borderWidth = tier === 'standard' ? 2 : tier === 'mid' ? 3 : 4;
+  const isPartnerLocked = disabledReason === 'partner';
+  const isAffordLocked = disabledReason === 'afford';
+  const locked = !affordable;
+
+  // Color choices for locked vs. unlocked
+  const shelfColor = locked ? '#4A4A4A' : accent;
+  const footerBg = locked ? '#4A4A4A' : accent;
+  const footerText = locked ? '#FFFFFF' : '#000000';
+
   return (
     <Pressable
       onPress={() => {
         Haptics.impactAsync(
-          disabled
+          locked
             ? Haptics.ImpactFeedbackStyle.Rigid
             : Haptics.ImpactFeedbackStyle.Medium
         );
         onPress(item);
       }}
       style={{
-        width: 108,
-        height: 144,
+        width,
+        height: 168,
         backgroundColor: '#000',
-        borderWidth: 3,
-        borderColor: '#FFCC00',
-        padding: 8,
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        opacity: disabled ? 0.4 : 1,
+        borderWidth,
+        borderColor: locked ? '#4A4A4A' : accent,
+        opacity: isPartnerLocked ? 0.5 : 1,
       }}
     >
-      <Text style={{ fontSize: 30 }}>{extractIcon(item.name)}</Text>
-      <Text
-        numberOfLines={3}
+      {/* Top shelf band */}
+      <View style={{ height: 8, backgroundColor: shelfColor }} />
+
+      {/* Premium corner stars */}
+      {tier === 'premium' && !locked && (
+        <>
+          <Text
+            style={{
+              position: 'absolute',
+              top: 12,
+              left: 6,
+              fontFamily: 'PressStart2P',
+              fontSize: 10,
+              color: accent,
+            }}
+          >
+            ✦
+          </Text>
+          <Text
+            style={{
+              position: 'absolute',
+              top: 12,
+              right: 6,
+              fontFamily: 'PressStart2P',
+              fontSize: 10,
+              color: accent,
+            }}
+          >
+            ✦
+          </Text>
+        </>
+      )}
+
+      {/* Body: emoji + name */}
+      <View
         style={{
-          fontFamily: 'PressStart2P',
-          color: '#FFFFFF',
-          fontSize: 7,
-          textAlign: 'center',
+          flex: 1,
+          alignItems: 'center',
+          justifyContent: 'center',
+          paddingHorizontal: 6,
+          paddingVertical: 8,
+          gap: 8,
         }}
       >
-        {stripIcon(item.name).toUpperCase()}
-      </Text>
-      <Text
+        <Text style={{ fontSize: 48 }}>{extractIcon(item.name)}</Text>
+        <Text
+          numberOfLines={2}
+          style={{
+            fontFamily: 'PressStart2P',
+            color: '#FFFFFF',
+            fontSize: 8,
+            textAlign: 'center',
+            lineHeight: 12,
+          }}
+        >
+          {stripIcon(item.name).toUpperCase()}
+        </Text>
+      </View>
+
+      {/* Price-tag footer */}
+      <MotiView
+        from={{ opacity: 1 }}
+        animate={{ opacity: locked ? 1 : 0.85 }}
+        transition={
+          locked
+            ? { type: 'timing', duration: 0 }
+            : {
+                type: 'timing',
+                duration: 2000,
+                loop: true,
+                repeatReverse: true,
+              }
+        }
         style={{
-          fontFamily: 'PressStart2P',
-          color: '#FFCC00',
-          fontSize: 8,
+          backgroundColor: footerBg,
+          paddingVertical: 6,
+          alignItems: 'center',
         }}
       >
-        {item.cost}¢
-      </Text>
+        <Text
+          style={{
+            fontFamily: 'PressStart2P',
+            color: footerText,
+            fontSize: 10,
+          }}
+        >
+          {isPartnerLocked
+            ? '🔒 NO PARTNER'
+            : isAffordLocked
+              ? `🔒 NEED +${shortfall}¢`
+              : formatCoins(item.cost)}
+        </Text>
+      </MotiView>
     </Pressable>
   );
 }
