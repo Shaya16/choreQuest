@@ -145,7 +145,10 @@ export default function RootLayout() {
       return;
     }
 
-    if (group !== '(tabs)') router.replace('/(tabs)');
+    // Allow (tabs) and (round) — both are valid post-auth surfaces. The
+    // round-over flow lives in (round) and would otherwise get bounced back
+    // here on every mount.
+    if (group !== '(tabs)' && group !== '(round)') router.replace('/(tabs)');
   }, [loading, fontsLoaded, fontError, session, couple, segments, router]);
 
   // Round-over redirect: if there's a closed round whose flow is unresolved
