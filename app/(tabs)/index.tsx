@@ -9,6 +9,7 @@ import { ACCENT_HEX, CLASS_META } from '@/lib/characters';
 import { Stage } from '@/components/game/Stage';
 import { FighterCard } from '@/components/game/FighterCard';
 import { DebtBadge } from '@/components/game/DebtBadge';
+import { RedDotBadge } from '@/components/game/RedDotBadge';
 import { VsDivider } from '@/components/game/VsDivider';
 import { StrikeDrawer } from '@/components/game/StrikeDrawer';
 import { StrikeProjectile } from '@/components/game/StrikeProjectile';
@@ -410,6 +411,26 @@ export default function HomeScreen() {
     };
   }, [couple?.id, player?.id]);
 
+  // Count of shop purchases where the partner has called in a redemption and
+  // is waiting on me. Drives the red-dot badge on the SHOP ActionTile.
+  const [shopQueueCount, setShopQueueCount] = useState<number>(0);
+
+  useEffect(() => {
+    if (!player?.id) return;
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase
+        .from('purchases')
+        .select('id')
+        .eq('target_id', player.id)
+        .eq('status', 'redemption_requested');
+      if (!cancelled) setShopQueueCount((data ?? []).length);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [player?.id, pendingRound?.id]);
+
   // Derived state used by the render below. The CTA in the Control Panel
   // changes label + color based on role / stage:
   //   - winner, unpicked  → "CLAIM TRIBUTE"
@@ -714,15 +735,18 @@ export default function HomeScreen() {
         {/* Jackpot button removed — co-op layer hidden per round-close+tribute design.
             jackpot.tsx route stays on disk; re-enabling is restoring the ActionTile. */}
         <ControlPanel>
-          <ActionTile
-            icon="💰"
-            label="SHOP"
-            subtitle="REDEEM"
-            color="#FFCC00"
-            bounceDelay={0}
-            lampDelay={0}
-            onPress={() => router.push('/(tabs)/shop')}
-          />
+          <View style={{ position: 'relative' }}>
+            <ActionTile
+              icon="💰"
+              label="SHOP"
+              subtitle="REDEEM"
+              color="#FFCC00"
+              bounceDelay={0}
+              lampDelay={0}
+              onPress={() => router.push('/(tabs)/shop')}
+            />
+            {shopQueueCount > 0 && <RedDotBadge />}
+          </View>
           {needsPick && pendingRound && (
             <ActionTile
               icon="🎁"
