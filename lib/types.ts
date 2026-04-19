@@ -71,6 +71,7 @@ export type Player = {
   belts: number;
   instant_win_tokens: number;
   upgrades: string[];
+  expo_push_token: string | null;
   created_at: string;
 };
 
@@ -165,6 +166,24 @@ export type JackpotGoal = {
   achieved_on: string | null;
 };
 
+export type PushTriggerType =
+  | 'lead_flip'
+  | 'milestone'
+  | 'round_ending'
+  | 'round_closed'
+  | 'end_of_day'
+  | 'inactivity';
+
+export type PushState = {
+  player_id: string;
+  trigger_type: PushTriggerType;
+  last_variant_index: number | null;
+  last_fired_at: string | null;
+  dedup_round_id: string | null;
+  dedup_level: number | null;
+  dedup_date: string | null;
+};
+
 // -----------------------------------------------------------------------------
 // Supabase Database shape. Tables require Row/Insert/Update/Relationships, and
 // the schema requires Views/Functions/Enums/CompositeTypes (empty is fine).
@@ -225,6 +244,12 @@ export type Database = {
         Insert: Partial<JackpotGoal> &
           Pick<JackpotGoal, 'couple_id' | 'name' | 'target_coins'>;
         Update: Partial<JackpotGoal>;
+        Relationships: NoRelationships;
+      };
+      push_state: {
+        Row: PushState;
+        Insert: Partial<PushState> & Pick<PushState, 'player_id' | 'trigger_type'>;
+        Update: Partial<PushState>;
         Relationships: NoRelationships;
       };
     };
