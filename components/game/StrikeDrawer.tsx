@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Pressable, Text, View } from 'react-native';
 import { MotiView } from 'moti';
 
-import { MoveRow } from './MoveRow';
+import { MoveCard } from './MoveCard';
 import { WORLD_META, WORLD_ORDER } from '@/lib/worlds';
 import type { Activity, HouseholdTier, World } from '@/lib/types';
 
@@ -608,13 +608,14 @@ function renderMoveRow(
   const used = todayCounts[a.id] ?? 0;
   const usesLeft = Math.max(0, (a.daily_cap ?? 0) - used);
   return (
-    <MoveRow
+    <MoveCard
       key={a.id}
       activity={a}
       usesLeft={usesLeft}
       dailyCap={a.daily_cap ?? 1}
+      accentHex={WORLD_META[a.world].accentHex}
       onStrike={() => onStrike(a)}
-      strikeKey={strikeFlashMap[a.id] ?? 0}
+      strikeFlashKey={strikeFlashMap[a.id] ?? 0}
     />
   );
 }

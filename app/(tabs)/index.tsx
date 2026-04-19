@@ -489,7 +489,7 @@ export default function HomeScreen() {
     // If realtime later echoes this row, applyLog dedupes by row.id.
     view.applyLog(row);
 
-    // Bump drawer flash so MoveRow animates
+    // Bump drawer flash so MoveCard animates
     setStrikeFlashMap((prev) => ({
       ...prev,
       [activity.id]: (prev[activity.id] ?? 0) + 1,
