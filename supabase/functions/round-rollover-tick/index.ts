@@ -85,16 +85,16 @@ async function closeOneRound(admin: SupabaseClient, round: RoundRow): Promise<bo
   // Load logs for this round with their world (joined from activities).
   const { data: rawLogs } = await admin
     .from('logs')
-    .select('player_id, coins_earned, activities(world)')
+    .select('player_id, round_value_earned, activities(world)')
     .eq('round_id', round.id);
 
   const logs: LogForClose[] = (rawLogs ?? []).map((r: {
     player_id: string;
-    coins_earned: number | null;
+    round_value_earned: number | null;
     activities: { world: string } | { world: string }[] | null;
   }) => ({
     player_id: r.player_id,
-    coins_earned: r.coins_earned ?? 0,
+    round_value_earned: r.round_value_earned ?? 0,
     world: Array.isArray(r.activities)
       ? r.activities[0]?.world ?? 'unknown'
       : r.activities?.world ?? 'unknown',
@@ -115,7 +115,7 @@ async function closeOneRound(admin: SupabaseClient, round: RoundRow): Promise<bo
   const { data: updated } = await admin
     .from('rounds')
     .update({
-      status: 'closed',
+      status: result.status,              // 'closed' or 'inactive'
       p1_total: result.p1Total,
       p2_total: result.p2Total,
       winner_id: result.winnerId,
@@ -138,7 +138,11 @@ async function closeOneRound(admin: SupabaseClient, round: RoundRow): Promise<bo
   await openNextRound(admin, round);
 
   // Push to both players.
-  if (!isQuietHours()) {
+  if (result.status === 'inactive') {
+    if (!isQuietHours()) {
+      await pushRoundInactive(admin, p1, p2, round);
+    }
+  } else if (!isQuietHours()) {
     await pushRoundOutcome(admin, p1, p2, result, round);
   }
 
@@ -263,4 +267,22 @@ async function writeLastIndex(
       },
       { onConflict: 'player_id,trigger_type' }
     );
+}
+
+async function pushRoundInactive(
+  admin: SupabaseClient,
+  p1: PlayerRow,
+  p2: PlayerRow | null,
+  round: RoundRow
+): Promise<void> {
+  const message = `ROUND ${round.number} INACTIVE — nobody hit 50 chore points. No tribute this week.`;
+  for (const player of [p1, p2].filter((p): p is PlayerRow => !!p)) {
+    if (!player.expo_push_token) continue;
+    await sendPush({
+      to: player.expo_push_token,
+      title: 'ROUND INACTIVE',
+      body: message,
+      data: { screen: 'round_over', round_id: round.id },
+    });
+  }
 }
