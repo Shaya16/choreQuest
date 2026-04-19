@@ -18,7 +18,7 @@
       "bundleIdentifier": "com.chorequest.app",
       "supportsTablet": false,
       "infoPlist": {
-        "UIBackgroundModes": []
+        "UIBackgroundModes": ["remote-notification"]
       }
     },
     "android": {
@@ -51,6 +51,12 @@
           "backgroundColor": "#000000",
           "image": "./assets/splash-icon.png",
           "imageWidth": 200
+        }
+      ],
+      [
+        "expo-notifications",
+        {
+          "color": "#FFCC00"
         }
       ]
     ],
