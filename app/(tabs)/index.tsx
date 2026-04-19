@@ -596,6 +596,8 @@ export default function HomeScreen() {
         {!p2 && <InviteBanner code={couple?.invite_code ?? '------'} />}
 
         {/* ============ CONTROL PANEL ============ */}
+        {/* Jackpot button removed — co-op layer hidden per round-close+tribute design.
+            jackpot.tsx route stays on disk; re-enabling is restoring the ActionTile. */}
         <ControlPanel>
           <ActionTile
             icon="💰"
@@ -605,15 +607,6 @@ export default function HomeScreen() {
             bounceDelay={0}
             lampDelay={0}
             onPress={() => router.push('/(tabs)/shop')}
-          />
-          <ActionTile
-            icon="🏆"
-            label="JACKPOT"
-            subtitle="GOAL"
-            color="#FFB8DE"
-            bounceDelay={120}
-            lampDelay={200}
-            onPress={() => router.push('/(tabs)/jackpot')}
           />
         </ControlPanel>
       </ScrollView>
