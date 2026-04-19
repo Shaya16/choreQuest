@@ -2,6 +2,7 @@ import '../global.css';
 import { useEffect, useState } from 'react';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import { useFonts } from 'expo-font';
+import * as Notifications from 'expo-notifications';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { View } from 'react-native';
@@ -205,6 +206,16 @@ export default function RootLayout() {
       void channel.unsubscribe();
     };
   }, [player?.id, partner?.id]);
+
+  useEffect(() => {
+    const sub = Notifications.addNotificationResponseReceivedListener((response) => {
+      const data = response.notification.request.content.data as { screen?: string };
+      if (data?.screen === 'strike_drawer') {
+        router.push({ pathname: '/(tabs)', params: { openDrawer: '1' } });
+      }
+    });
+    return () => sub.remove();
+  }, [router]);
 
   if (!fontsLoaded && !fontError) {
     // Fonts haven't landed yet — Expo's native splash still covers the screen.

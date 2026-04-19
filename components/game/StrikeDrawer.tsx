@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Pressable, Text, View } from 'react-native';
 import { MotiView } from 'moti';
 
@@ -15,6 +15,8 @@ type Props = {
   roundActive: boolean;
   onStrike: (activity: Activity) => void;
   strikeFlashMap: Record<string, number>;
+  /** Bumped by the caller to force the drawer open (e.g. from a push tap). */
+  openSignal?: number;
 };
 
 type DrawerView = 'collapsed' | 'picker' | World;
@@ -36,9 +38,17 @@ export function StrikeDrawer({
   roundActive,
   onStrike,
   strikeFlashMap,
+  openSignal,
 }: Props) {
   const [view, setView] = useState<DrawerView>('picker');
   const expanded = view !== 'collapsed';
+
+  // External signal to expand the drawer (e.g. notification tap).
+  // Skip the initial mount since view already defaults to 'picker'.
+  useEffect(() => {
+    if (openSignal === undefined) return;
+    setView('picker');
+  }, [openSignal]);
 
   const totalAmmo = useMemo(() => {
     let total = 0;

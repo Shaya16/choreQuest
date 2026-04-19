@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 import { MotiView } from 'moti';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { router, useFocusEffect } from 'expo-router';
+import { router, useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 
 import { ACCENT_HEX, CLASS_META } from '@/lib/characters';
@@ -453,6 +453,18 @@ export default function HomeScreen() {
     }, [])
   );
 
+  const { openDrawer } = useLocalSearchParams<{ openDrawer?: string }>();
+  const localRouter = useRouter();
+  const [drawerSignal, setDrawerSignal] = useState(0);
+
+  useEffect(() => {
+    if (openDrawer === '1') {
+      setDrawerSignal((n) => n + 1);
+      // Clear the query so navigating away and back doesn't re-fire.
+      localRouter.setParams({ openDrawer: undefined });
+    }
+  }, [openDrawer]);
+
   const margin = stats?.margin ?? 0;
   const leader = stats?.leader ?? 'tied';
   const roundNumber = round?.number ?? 1;
@@ -577,6 +589,7 @@ export default function HomeScreen() {
           roundActive={strike.roundId != null}
           onStrike={(a) => void handleStrike(a)}
           strikeFlashMap={strikeFlashMap}
+          openSignal={drawerSignal}
         />
 
         {/* ============ INVITE CODE (only when no P2) ============ */}
