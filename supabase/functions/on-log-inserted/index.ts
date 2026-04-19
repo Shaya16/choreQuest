@@ -41,11 +41,27 @@ type LogInsertPayload = { record: LogRow };
 type RoundClosedPayload = { type: 'round_closed'; round: RoundRow };
 type TributePickedPayload = { type: 'tribute_picked'; round: RoundRow };
 type TributePaidPayload = { type: 'tribute_paid'; round: RoundRow };
+type PurchaseRow = {
+  id: string;
+  shop_item_id: string;
+  buyer_id: string;
+  target_id: string;
+  purchased_at: string;
+  redemption_requested_at: string | null;
+  redeemed_at: string | null;
+  status: string;
+};
+type PurchaseMadePayload = { type: 'purchase_made'; purchase: PurchaseRow };
+type RedemptionRequestedPayload = { type: 'redemption_requested'; purchase: PurchaseRow };
+type DeliveryConfirmedPayload = { type: 'delivery_confirmed'; purchase: PurchaseRow };
 type DispatchPayload =
   | LogInsertPayload
   | RoundClosedPayload
   | TributePickedPayload
-  | TributePaidPayload;
+  | TributePaidPayload
+  | PurchaseMadePayload
+  | RedemptionRequestedPayload
+  | DeliveryConfirmedPayload;
 
 type TargetPlayer = {
   id: string;
@@ -79,6 +95,18 @@ Deno.serve(async (req: Request) => {
     }
     if (payload.type === 'tribute_paid') {
       await handleTributePaid(admin, payload.round);
+      return new Response('ok', { status: 200 });
+    }
+    if (payload.type === 'purchase_made') {
+      await handlePurchaseMade(admin, payload.purchase);
+      return new Response('ok', { status: 200 });
+    }
+    if (payload.type === 'redemption_requested') {
+      await handleRedemptionRequested(admin, payload.purchase);
+      return new Response('ok', { status: 200 });
+    }
+    if (payload.type === 'delivery_confirmed') {
+      await handleDeliveryConfirmed(admin, payload.purchase);
       return new Response('ok', { status: 200 });
     }
   }
@@ -423,4 +451,118 @@ async function writeLastIndex(
       },
       { onConflict: 'player_id,trigger_type' }
     );
+}
+
+async function handlePurchaseMade(
+  admin: SupabaseClient,
+  purchase: PurchaseRow
+): Promise<void> {
+  if (!purchase.target_id || isQuietHours()) return;
+  const [{ data: target }, { data: buyer }, { data: item }] = await Promise.all([
+    admin
+      .from('players')
+      .select('id, display_name, expo_push_token')
+      .eq('id', purchase.target_id)
+      .maybeSingle(),
+    admin
+      .from('players')
+      .select('id, display_name')
+      .eq('id', purchase.buyer_id)
+      .maybeSingle(),
+    admin
+      .from('shop_items')
+      .select('name')
+      .eq('id', purchase.shop_item_id)
+      .maybeSingle(),
+  ]);
+  if (!target?.expo_push_token) return;
+
+  const lastIndex = await readLastIndex(admin, target.id, 'purchase_made');
+  const pick = pickVariant(VARIANTS.purchase_made, lastIndex, {
+    partner: buyer?.display_name ?? 'partner',
+    item: item?.name ?? 'an item',
+  });
+  await sendPush({
+    to: target.expo_push_token,
+    title: 'NEW PURCHASE',
+    body: pick.text,
+    data: { screen: 'shop' },
+  });
+  await writeLastIndex(admin, target.id, 'purchase_made', pick.index);
+}
+
+async function handleRedemptionRequested(
+  admin: SupabaseClient,
+  purchase: PurchaseRow
+): Promise<void> {
+  if (!purchase.target_id || isQuietHours()) return;
+  const [{ data: target }, { data: buyer }, { data: item }] = await Promise.all([
+    admin
+      .from('players')
+      .select('id, display_name, expo_push_token')
+      .eq('id', purchase.target_id)
+      .maybeSingle(),
+    admin
+      .from('players')
+      .select('id, display_name')
+      .eq('id', purchase.buyer_id)
+      .maybeSingle(),
+    admin
+      .from('shop_items')
+      .select('name')
+      .eq('id', purchase.shop_item_id)
+      .maybeSingle(),
+  ]);
+  if (!target?.expo_push_token) return;
+
+  const lastIndex = await readLastIndex(admin, target.id, 'redemption_requested');
+  const pick = pickVariant(VARIANTS.redemption_requested, lastIndex, {
+    partner: buyer?.display_name ?? 'partner',
+    item: item?.name ?? 'tribute',
+  });
+  await sendPush({
+    to: target.expo_push_token,
+    title: 'REDEMPTION NOW',
+    body: pick.text,
+    data: { screen: 'shop' },
+  });
+  await writeLastIndex(admin, target.id, 'redemption_requested', pick.index);
+}
+
+async function handleDeliveryConfirmed(
+  admin: SupabaseClient,
+  purchase: PurchaseRow
+): Promise<void> {
+  if (!purchase.buyer_id || isQuietHours()) return;
+  const [{ data: buyer }, { data: target }, { data: item }] = await Promise.all([
+    admin
+      .from('players')
+      .select('id, display_name, expo_push_token')
+      .eq('id', purchase.buyer_id)
+      .maybeSingle(),
+    admin
+      .from('players')
+      .select('id, display_name')
+      .eq('id', purchase.target_id)
+      .maybeSingle(),
+    admin
+      .from('shop_items')
+      .select('name')
+      .eq('id', purchase.shop_item_id)
+      .maybeSingle(),
+  ]);
+  if (!buyer?.expo_push_token) return;
+
+  const lastIndex = await readLastIndex(admin, buyer.id, 'delivery_confirmed');
+  const pick = pickVariant(VARIANTS.delivery_confirmed, lastIndex, {
+    partner: target?.display_name ?? 'partner',
+    item: item?.name ?? 'tribute',
+  });
+  await sendPush({
+    to: buyer.expo_push_token,
+    title: 'DELIVERED',
+    body: pick.text,
+    data: { screen: 'home' },
+  });
+  await writeLastIndex(admin, buyer.id, 'delivery_confirmed', pick.index);
 }
