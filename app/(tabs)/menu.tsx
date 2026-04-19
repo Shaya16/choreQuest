@@ -1,9 +1,10 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   Alert,
   Image,
   Pressable,
   ScrollView,
+  Switch,
   Text,
   View,
 } from 'react-native';
@@ -15,6 +16,7 @@ import { CLASS_META } from '@/lib/characters';
 import { useRoundView } from '@/lib/useRoundView';
 import { useSession } from '@/lib/store';
 import { supabase } from '@/lib/supabase';
+import { clearPushToken, registerPushToken } from '@/lib/notifications';
 import type { Player } from '@/lib/types';
 
 /**
@@ -29,6 +31,23 @@ export default function MenuScreen() {
 
   const [stubBusy, setStubBusy] = useState(false);
   const [stubInfo, setStubInfo] = useState<string | null>(null);
+
+  const [notifEnabled, setNotifEnabled] = useState<boolean>(!!player?.expo_push_token);
+
+  useEffect(() => {
+    setNotifEnabled(!!player?.expo_push_token);
+  }, [player?.expo_push_token]);
+
+  async function handleNotifToggle(value: boolean) {
+    if (!player) return;
+    setNotifEnabled(value);
+    if (value) {
+      const token = await registerPushToken(player.id);
+      if (!token) setNotifEnabled(false); // permission denied or simulator — fell through
+    } else {
+      await clearPushToken(player.id);
+    }
+  }
 
   async function signOut() {
     await supabase.auth.signOut();
@@ -212,6 +231,36 @@ export default function MenuScreen() {
           >
             LVL {couple?.couple_level ?? 1} · {couple?.couple_xp ?? 0} XP
           </Text>
+        </View>
+
+        {/* ============ SETTINGS ============ */}
+        <View style={{ height: 14 }} />
+        <SectionLabel label="SETTINGS" accent="#FFCC00" />
+        <View
+          style={{
+            borderWidth: 2,
+            borderColor: '#FFCC00',
+            padding: 10,
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+          }}
+        >
+          <Text
+            style={{
+              fontFamily: 'PressStart2P',
+              color: '#FFFFFF',
+              fontSize: 10,
+              letterSpacing: 1,
+            }}
+          >
+            NOTIFICATIONS
+          </Text>
+          <Switch
+            value={notifEnabled}
+            onValueChange={handleNotifToggle}
+            trackColor={{ false: '#333', true: '#FFCC00' }}
+          />
         </View>
 
         {/* ============ DEV TOOLS ============ */}
