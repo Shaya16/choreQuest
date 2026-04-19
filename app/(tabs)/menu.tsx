@@ -18,9 +18,8 @@ import { useSession } from '@/lib/store';
 import { supabase } from '@/lib/supabase';
 import { clearPushToken, registerPushToken } from '@/lib/notifications';
 import { forceCloseCurrentRound } from '@/lib/tribute';
-import { createLog } from '@/lib/logger';
 import { ensureActiveRound } from '@/lib/round';
-import type { Activity, Player, Round } from '@/lib/types';
+import type { Activity, Log, Player, Round } from '@/lib/types';
 
 /**
  * Pause-menu modal presented from Home. Combines the action feed (history)
@@ -102,15 +101,23 @@ export default function MenuScreen() {
       Alert.alert('Inject failed', 'Activities not loaded yet.');
       return;
     }
+    if (!p2 || p2.id === player.id) {
+      Alert.alert(
+        'Inject failed',
+        'No partner / stub to log for. Summon a stub partner first.'
+      );
+      return;
+    }
     setInjectBusy(true);
     try {
+      // Ensure an active round exists before injecting (the RPC also checks,
+      // but this path is quieter if the couple just closed their last round).
       const round = await ensureActiveRound(couple.id);
       if (!round) {
         Alert.alert('Inject failed', 'Could not resolve active round.');
         return;
       }
-      // Pick 5 random activities (weighted toward higher base_value for fast
-      // margin builds) and fire a log for each.
+      // Pick 5 random activities and fire an insert for each via the RPC.
       const pool = activities.slice();
       const picks: Activity[] = [];
       for (let i = 0; i < 5 && pool.length > 0; i++) {
@@ -119,16 +126,31 @@ export default function MenuScreen() {
       }
       let totalCoins = 0;
       let inserted = 0;
+      let firstError: string | null = null;
       for (const a of picks) {
-        const log = await createLog({ activity: a, player, roundId: round.id });
+        const { data, error } = await supabase.rpc('dev_inject_stub_log', {
+          p_activity_id: a.id,
+        });
+        if (error) {
+          if (!firstError) firstError = error.message;
+          continue;
+        }
+        const log = data as Log | null;
         if (log) {
           inserted++;
           totalCoins += log.coins_earned ?? 0;
         }
       }
+      if (inserted === 0) {
+        Alert.alert(
+          'Inject failed',
+          firstError ?? 'All inserts rejected (RLS / missing stub?).'
+        );
+        return;
+      }
       Alert.alert(
-        'Logs injected',
-        `${inserted}/${picks.length} logs · +${totalCoins} coins into R${round.number}.`
+        'Stub logs injected',
+        `${inserted}/${picks.length} logs · +${totalCoins} coins for ${p2.display_name} into R${round.number}.`
       );
     } catch (e) {
       Alert.alert(
@@ -463,7 +485,7 @@ export default function MenuScreen() {
                 textAlign: 'center',
               }}
             >
-              🛠 INJECT 5 DUMMY LOGS
+              🛠 INJECT 5 STUB LOGS
             </Text>
           </Pressable>
           <View style={{ height: 8 }} />

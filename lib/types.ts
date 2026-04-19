@@ -284,6 +284,10 @@ export type Database = {
         Args: Record<string, never>;
         Returns: Round;
       };
+      dev_inject_stub_log: {
+        Args: { p_activity_id: string };
+        Returns: Log;
+      };
     };
     Enums: Record<string, never>;
     CompositeTypes: Record<string, never>;
