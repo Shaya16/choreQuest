@@ -33,7 +33,11 @@ export type RoundStatus = 'active' | 'closed';
 export type TributeTier = 'paper_cut' | 'knockout' | 'total_carnage' | 'flawless';
 export type JackpotStatus = 'active' | 'achieved' | 'celebrated' | 'locked';
 export type JackpotPriority = 'next_up' | 'queue' | 'someday';
-export type PurchaseStatus = 'pending' | 'redeemed' | 'cancelled';
+export type PurchaseStatus =
+  | 'pending'
+  | 'redemption_requested'
+  | 'redeemed'
+  | 'cancelled';
 
 export type Couple = {
   id: string;
@@ -151,6 +155,7 @@ export type Purchase = {
   buyer_id: string;
   target_id: string;
   purchased_at: string;
+  redemption_requested_at: string | null;
   redeemed_at: string | null;
   status: PurchaseStatus;
 };
@@ -181,7 +186,10 @@ export type PushTriggerType =
   | 'round_lost'
   | 'round_tied'
   | 'tribute_picked'
-  | 'tribute_paid';
+  | 'tribute_paid'
+  | 'purchase_made'
+  | 'redemption_requested'
+  | 'delivery_confirmed';
 
 export type PushState = {
   player_id: string;
