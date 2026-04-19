@@ -33,6 +33,7 @@ begin
 end;
 $$;
 
+drop trigger if exists purchases_after_insert_notify on public.purchases;
 create trigger purchases_after_insert_notify
   after insert on public.purchases
   for each row
@@ -68,6 +69,7 @@ begin
 end;
 $$;
 
+drop trigger if exists purchases_after_update_redemption_requested on public.purchases;
 create trigger purchases_after_update_redemption_requested
   after update of status on public.purchases
   for each row
@@ -102,6 +104,7 @@ begin
 end;
 $$;
 
+drop trigger if exists purchases_after_update_delivery_confirmed on public.purchases;
 create trigger purchases_after_update_delivery_confirmed
   after update of status on public.purchases
   for each row
