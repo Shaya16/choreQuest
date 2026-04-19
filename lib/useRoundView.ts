@@ -116,14 +116,14 @@ export function useRoundView(couple: Couple | null): RoundView {
       if (row.player_id === p1Id) {
         next.p1 = {
           ...next.p1,
-          score: next.p1.score + (row.coins_earned ?? 0),
+          score: next.p1.score + (row.round_value_earned ?? 0),
           logCount: next.p1.logCount + 1,
           lastLogAt: row.logged_at,
         };
       } else if (row.player_id === p2Id && next.p2) {
         next.p2 = {
           ...next.p2,
-          score: next.p2.score + (row.coins_earned ?? 0),
+          score: next.p2.score + (row.round_value_earned ?? 0),
           logCount: next.p2.logCount + 1,
           lastLogAt: row.logged_at,
         };

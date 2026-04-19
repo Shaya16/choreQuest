@@ -18,6 +18,7 @@ type LogRow = {
   activity_id: string;
   round_id: string;
   coins_earned: number;
+  round_value_earned: number;
   logged_at: string;
 };
 
@@ -144,18 +145,18 @@ async function handleLogInserted(admin: SupabaseClient, log: LogRow) {
 
   const { data: totals } = await admin
     .from('logs')
-    .select('player_id, coins_earned')
+    .select('player_id, round_value_earned')
     .eq('round_id', log.round_id);
 
   const strikerTotal = (totals ?? [])
     .filter((r: { player_id: string }) => r.player_id === striker.id)
-    .reduce((s: number, r: { coins_earned: number | null }) => s + (r.coins_earned ?? 0), 0);
+    .reduce((s: number, r: { round_value_earned: number | null }) => s + (r.round_value_earned ?? 0), 0);
   const partnerTotal = (totals ?? [])
     .filter((r: { player_id: string }) => r.player_id === partner.id)
-    .reduce((s: number, r: { coins_earned: number | null }) => s + (r.coins_earned ?? 0), 0);
+    .reduce((s: number, r: { round_value_earned: number | null }) => s + (r.round_value_earned ?? 0), 0);
 
-  // Totals BEFORE this strike landed (log.coins_earned is already in totals).
-  const strikerTotalBefore = strikerTotal - (log.coins_earned ?? 0);
+  // Totals BEFORE this strike landed (log.round_value_earned is already in totals).
+  const strikerTotalBefore = strikerTotal - (log.round_value_earned ?? 0);
 
   // --- Trigger: lead flip ---
   const wasBehindOrTied = strikerTotalBefore <= partnerTotal;

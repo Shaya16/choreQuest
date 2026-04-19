@@ -172,6 +172,7 @@ async function tryEndOfDay(
     .from('activities')
     .select('id, daily_cap')
     .eq('is_active', true)
+    .is('archived_at', null)
     .gt('daily_cap', 0);
   const { data: todayLogs } = await admin
     .from('logs')

@@ -258,7 +258,7 @@ export default function MenuScreen() {
       .from('rounds')
       .select('*')
       .eq('couple_id', couple.id)
-      .eq('status', 'closed')
+      .in('status', ['closed', 'inactive'])
       .order('number', { ascending: false })
       .limit(5);
     if (qErr) {

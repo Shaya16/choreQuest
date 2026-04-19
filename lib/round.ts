@@ -91,11 +91,11 @@ export async function loadRoundStats(
 ): Promise<RoundStats> {
   const { data: logs } = await supabase
     .from('logs')
-    .select('player_id, coins_earned, logged_at')
+    .select('player_id, round_value_earned, logged_at')
     .eq('round_id', roundId)
     .order('logged_at', { ascending: false });
 
-  const rows = (logs ?? []) as Pick<Log, 'player_id' | 'coins_earned' | 'logged_at'>[];
+  const rows = (logs ?? []) as Pick<Log, 'player_id' | 'round_value_earned' | 'logged_at'>[];
 
   function statsFor(id: string | null): FighterStats | null {
     if (!id) return null;
@@ -104,7 +104,7 @@ export async function loadRoundStats(
     let logCount = 0;
     for (const r of rows) {
       if (r.player_id === id) {
-        score += r.coins_earned ?? 0;
+        score += r.round_value_earned ?? 0;
         logCount += 1;
         if (!lastLogAt) lastLogAt = r.logged_at;
       }
