@@ -27,21 +27,32 @@ export default function RoundOverScreen() {
   const [cards, setCards] = useState<ShopItem[]>([]);
   const [mode, setMode] = useState<Mode>('cinematic');
   const [partnerName, setPartnerName] = useState<string>('???');
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!params.roundId || !player) return;
+    if (!player) {
+      setLoadError('No player session.');
+      return;
+    }
+    if (!params.roundId) {
+      setLoadError('No roundId in route params.');
+      return;
+    }
     let cancelled = false;
     (async () => {
       try {
-        const { data: r } = await supabase
+        const { data: r, error: rErr } = await supabase
           .from('rounds')
           .select('*')
           .eq('id', params.roundId!)
           .maybeSingle<Round>();
         if (cancelled) return;
+        if (rErr) {
+          setLoadError(`rounds query: ${rErr.message}`);
+          return;
+        }
         if (!r) {
-          // Round not found (race / deleted). Bail gracefully — go home.
-          router.replace('/(tabs)');
+          setLoadError(`Round ${params.roundId} not found (RLS or deleted).`);
           return;
         }
         setRound(r);
@@ -69,8 +80,7 @@ export default function RoundOverScreen() {
         }
       } catch (e) {
         if (!cancelled) {
-          console.warn('round-over load failed:', e);
-          router.replace('/(tabs)');
+          setLoadError(`exception: ${e instanceof Error ? e.message : String(e)}`);
         }
       }
     })();
@@ -134,8 +144,63 @@ export default function RoundOverScreen() {
     router.replace('/(tabs)');
   }
 
+  if (loadError) {
+    return (
+      <View style={{ flex: 1, backgroundColor: '#000', padding: 24, justifyContent: 'center' }}>
+        <Text
+          style={{
+            fontFamily: 'PressStart2P',
+            color: '#FF3333',
+            fontSize: 11,
+            marginBottom: 16,
+            textAlign: 'center',
+          }}
+        >
+          ROUND-OVER LOAD FAILED
+        </Text>
+        <Text
+          style={{
+            fontFamily: 'PressStart2P',
+            color: '#FFFFFF',
+            fontSize: 8,
+            marginBottom: 32,
+            textAlign: 'center',
+          }}
+        >
+          {loadError}
+        </Text>
+        <Text
+          onPress={() => router.replace('/(tabs)')}
+          style={{
+            fontFamily: 'PressStart2P',
+            color: '#9EFA00',
+            fontSize: 10,
+            borderWidth: 2,
+            borderColor: '#9EFA00',
+            padding: 12,
+            textAlign: 'center',
+          }}
+        >
+          ▶ BACK TO HOME
+        </Text>
+      </View>
+    );
+  }
+
   if (!round || !player) {
-    return <View style={{ flex: 1, backgroundColor: '#000' }} />;
+    return (
+      <View style={{ flex: 1, backgroundColor: '#000', padding: 24, justifyContent: 'center', alignItems: 'center' }}>
+        <Text
+          style={{
+            fontFamily: 'PressStart2P',
+            color: '#4A4A4A',
+            fontSize: 9,
+          }}
+        >
+          LOADING ROUND…
+        </Text>
+      </View>
+    );
   }
 
   const winnerScore = round.winner_id === player.id
