@@ -3,6 +3,7 @@ import { Alert, Dimensions, Pressable, ScrollView, Text, View } from 'react-nati
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useFocusEffect } from 'expo-router';
 import * as Haptics from 'expo-haptics';
+import { AnimatePresence } from 'moti';
 
 import { ArsenalRow } from '@/components/game/ArsenalRow';
 import { PurchaseCard } from '@/components/game/PurchaseCard';
@@ -248,7 +249,9 @@ export default function ShopScreen() {
           tokenCount={tokenCount}
           awaitingCount={awaiting.length}
         />
-        <AffordabilityToast message={toastMessage} />
+        <AnimatePresence>
+          <AffordabilityToast message={toastMessage} />
+        </AnimatePresence>
       </View>
 
       {/* Shopkeep persona */}
