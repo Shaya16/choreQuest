@@ -303,6 +303,10 @@ export type Database = {
         Args: Record<string, never>;
         Returns: number;
       };
+      dev_stub_incoming_deploy: {
+        Args: Record<string, never>;
+        Returns: string;
+      };
     };
     Enums: Record<string, never>;
     CompositeTypes: Record<string, never>;

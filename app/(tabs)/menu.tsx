@@ -43,6 +43,7 @@ export default function MenuScreen() {
   const [injectBusy, setInjectBusy] = useState(false);
   const [fakePayBusy, setFakePayBusy] = useState(false);
   const [resetBusy, setResetBusy] = useState(false);
+  const [stubDeployBusy, setStubDeployBusy] = useState(false);
 
   const [notifEnabled, setNotifEnabled] = useState<boolean>(!!player?.expo_push_token);
 
@@ -238,6 +239,37 @@ export default function MenuScreen() {
     }
   }
 
+  async function handleStubDeploy() {
+    if (!couple || !player) {
+      Alert.alert('Stub deploy failed', 'Not paired yet.');
+      return;
+    }
+    setStubDeployBusy(true);
+    try {
+      // RLS blocks the client from inserting a purchases row where
+      // buyer_id != me, so we go through a SECURITY DEFINER RPC. The RPC
+      // picks a random shop item, sets buyer=partner / target=me / status=
+      // redemption_requested, and inserts. Caller then opens the Shop tab
+      // to see the row in the INCOMING block with DELIVER NOW.
+      const { error } = await supabase.rpc('dev_stub_incoming_deploy');
+      if (error) {
+        Alert.alert('Stub deploy failed', error.message);
+        return;
+      }
+      Alert.alert(
+        'Stub deployed',
+        'Partner called in a shop item. Open the Shop tab to see INCOMING.'
+      );
+    } catch (e) {
+      Alert.alert(
+        'Stub deploy failed',
+        e instanceof Error ? e.message : String(e)
+      );
+    } finally {
+      setStubDeployBusy(false);
+    }
+  }
+
   async function handleForceClose() {
     if (!couple || !player) {
       Alert.alert('Force close failed', 'Not paired yet.');
@@ -270,7 +302,7 @@ export default function MenuScreen() {
     if (closed.length === 0) {
       Alert.alert(
         'Force close: no closed rounds found',
-        `The function reported success but no rows have status='closed' for couple ${couple.id.slice(0, 8)}. The cron may have raced or RLS hid it.`
+        `The function reported success but no rows have status='closed' or 'inactive' for couple ${couple.id.slice(0, 8)}. The cron may have raced or RLS hid it.`
       );
       return;
     }
@@ -656,6 +688,28 @@ export default function MenuScreen() {
               }}
             >
               🛠 RESET TODAY&apos;S LOGS
+            </Text>
+          </Pressable>
+          <View style={{ height: 8 }} />
+          <Pressable
+            onPress={handleStubDeploy}
+            disabled={stubDeployBusy}
+            style={{
+              borderWidth: 2,
+              borderColor: '#FFB8DE',
+              padding: 12,
+              opacity: stubDeployBusy ? 0.5 : 1,
+            }}
+          >
+            <Text
+              style={{
+                fontFamily: 'PressStart2P',
+                color: '#FFB8DE',
+                fontSize: 9,
+                textAlign: 'center',
+              }}
+            >
+              🛠 STUB INCOMING DEPLOY
             </Text>
           </Pressable>
         </View>
