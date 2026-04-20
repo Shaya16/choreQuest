@@ -23,7 +23,7 @@ export type DebtSource =
 export type DebtState = {
   inDebt: boolean;          // at least one source older than 24h (grace)
   debtMultiplier: 0.5 | 1.0;
-  sources: DebtSource[];    // all open debts, newest-first (for UI listing)
+  sources: DebtSource[];    // all open debts, oldest-first (most overdue \u2192 top)
   activeSources: DebtSource[]; // subset older than 24h (what triggers debuff)
 };
 
