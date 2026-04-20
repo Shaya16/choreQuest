@@ -178,6 +178,14 @@ export type JackpotGoal = {
   achieved_on: string | null;
 };
 
+export type AmnestyFee = {
+  id: string;
+  purchase_id: string;
+  payer_id: string;
+  amount: number;
+  paid_at: string;
+};
+
 export type PushTriggerType =
   | 'lead_flip'
   | 'milestone'
@@ -270,6 +278,13 @@ export type Database = {
         Row: PushState;
         Insert: Partial<PushState> & Pick<PushState, 'player_id' | 'trigger_type'>;
         Update: Partial<PushState>;
+        Relationships: NoRelationships;
+      };
+      amnesty_fees: {
+        Row: AmnestyFee;
+        Insert: Partial<AmnestyFee> &
+          Pick<AmnestyFee, 'purchase_id' | 'payer_id' | 'amount'>;
+        Update: Partial<AmnestyFee>;
         Relationships: NoRelationships;
       };
     };

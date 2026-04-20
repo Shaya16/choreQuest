@@ -7,14 +7,20 @@ import { supabase } from './supabase';
  *   + sum(personal_share + jackpot_share) across all the player's logs
  *   + sum(winner_bonus_coins) across all rounds where this player won
  *   - sum(shop_items.cost) across all non-cancelled purchases by this player
+ *   - sum(amnesty_fees.amount) where payer_id = player
  *
  * Why computed on read instead of cached on players.personal_wallet:
  * after the Jackpot tab is hidden we treat both shares as one wallet, and the
  * cached column would be wrong by definition (it only ever held the 30%).
- * At couple-scale (hundreds of rows lifetime) the three SUMs are negligible.
+ * At couple-scale (hundreds of rows lifetime) the SUMs are negligible.
  */
 export async function getSpendableCoins(playerId: string): Promise<number> {
-  const [{ data: logs }, { data: bonuses }, { data: purchases }] = await Promise.all([
+  const [
+    { data: logs },
+    { data: bonuses },
+    { data: purchases },
+    { data: amnestyFees },
+  ] = await Promise.all([
     supabase
       .from('logs')
       .select('personal_share, jackpot_share')
@@ -28,13 +34,16 @@ export async function getSpendableCoins(playerId: string): Promise<number> {
       .select('shop_item_id, status')
       .eq('buyer_id', playerId)
       .neq('status', 'cancelled'),
+    supabase
+      .from('amnesty_fees')
+      .select('amount')
+      .eq('payer_id', playerId),
   ]);
 
-  const earned =
-    (logs ?? []).reduce(
-      (acc, l) => acc + (l.personal_share ?? 0) + (l.jackpot_share ?? 0),
-      0
-    );
+  const earned = (logs ?? []).reduce(
+    (acc, l) => acc + (l.personal_share ?? 0) + (l.jackpot_share ?? 0),
+    0
+  );
   const bonus = (bonuses ?? []).reduce(
     (acc, r) => acc + (r.winner_bonus_coins ?? 0),
     0
@@ -55,5 +64,10 @@ export async function getSpendableCoins(playerId: string): Promise<number> {
     }
   }
 
-  return earned + bonus - spent;
+  const amnestySpent = (amnestyFees ?? []).reduce(
+    (acc, f) => acc + (f.amount ?? 0),
+    0
+  );
+
+  return earned + bonus - spent - amnestySpent;
 }
