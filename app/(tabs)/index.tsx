@@ -10,7 +10,7 @@ import { Stage } from '@/components/game/Stage';
 import { FighterCard } from '@/components/game/FighterCard';
 import { RedDotBadge } from '@/components/game/RedDotBadge';
 import { VsDivider } from '@/components/game/VsDivider';
-import { StrikeDrawer } from '@/components/game/StrikeDrawer';
+import { StrikeDrawer, type DrawerView } from '@/components/game/StrikeDrawer';
 import { StrikeProjectile } from '@/components/game/StrikeProjectile';
 import { formatCountdown } from '@/lib/round';
 import { useRoundView } from '@/lib/useRoundView';
@@ -26,37 +26,40 @@ function PillButton({
   subtitle,
   color,
   onPress,
+  size = 'default',
 }: {
   icon: string;
   label: string;
   subtitle?: string;
   color: string;
   onPress: () => void;
+  size?: 'default' | 'large';
 }) {
+  const big = size === 'large';
   return (
     <Pressable onPress={onPress}>
       {({ pressed }) => (
         <View
           style={{
             backgroundColor: '#000000',
-            borderWidth: 2,
+            borderWidth: big ? 3 : 2,
             borderColor: color,
-            paddingHorizontal: 10,
-            paddingVertical: 5,
+            paddingHorizontal: big ? 16 : 10,
+            paddingVertical: big ? 8 : 5,
             flexDirection: 'row',
             alignItems: 'center',
-            gap: 6,
+            gap: big ? 8 : 6,
             opacity: pressed ? 0.7 : 1,
           }}
         >
-          <Text style={{ fontSize: 14 }}>{icon}</Text>
+          <Text style={{ fontSize: big ? 18 : 14 }}>{icon}</Text>
           <View>
             <Text
               style={{
                 fontFamily: 'PressStart2P',
                 color,
-                fontSize: 9,
-                letterSpacing: 2,
+                fontSize: big ? 11 : 9,
+                letterSpacing: big ? 3 : 2,
               }}
             >
               {label}
@@ -382,6 +385,8 @@ export default function HomeScreen() {
   const { openDrawer } = useLocalSearchParams<{ openDrawer?: string }>();
   const localRouter = useRouter();
   const [drawerSignal, setDrawerSignal] = useState(0);
+  const [drawerView, setDrawerView] = useState<DrawerView>('collapsed');
+  const drawerOpen = drawerView !== 'collapsed';
 
   useEffect(() => {
     if (openDrawer === '1') {
@@ -421,6 +426,7 @@ export default function HomeScreen() {
               icon="💰"
               label="SHOP"
               color="#FFCC00"
+              size="large"
               onPress={() => router.push('/(tabs)/shop')}
             />
             {shopQueueCount > 0 && <RedDotBadge />}
@@ -469,7 +475,7 @@ export default function HomeScreen() {
         <View>
           <Stage
             accentHex={stageAccent}
-            height={520}
+            height={drawerOpen ? 420 : 560}
             style={{
               borderWidth: 0,
               borderBottomWidth: 3,
@@ -483,8 +489,13 @@ export default function HomeScreen() {
                 paddingTop: 10,
               }}
             >
-              <View style={{ flex: 5, justifyContent: 'flex-end' }}>
-                {/* P1 fighter wrapper — FighterCard handles debt indicator internally. */}
+              <View
+                style={{
+                  flex: 5,
+                  justifyContent: 'flex-end',
+                  transform: [{ translateY: 60 }],
+                }}
+              >
                 <View style={{ flex: 1, position: 'relative' }}>
                   <FighterCard
                     player={p1}
@@ -503,7 +514,7 @@ export default function HomeScreen() {
                   />
                 </View>
               </View>
-              <View style={{ flex: 3, justifyContent: 'center' }}>
+              <View style={{ flex: 5, justifyContent: 'flex-start', paddingTop: 64 }}>
                 <VsDivider
                   margin={margin}
                   leader={leader}
@@ -511,8 +522,13 @@ export default function HomeScreen() {
                   roundNumber={roundNumber}
                 />
               </View>
-              <View style={{ flex: 5, justifyContent: 'flex-end' }}>
-                {/* P2 fighter wrapper — FighterCard handles debt indicator internally. */}
+              <View
+                style={{
+                  flex: 5,
+                  justifyContent: 'flex-end',
+                  transform: [{ translateY: 60 }],
+                }}
+              >
                 <View style={{ flex: 1, position: 'relative' }}>
                   <FighterCard
                     player={p2}
@@ -618,6 +634,8 @@ export default function HomeScreen() {
           onStrike={(a) => void handleStrike(a)}
           strikeFlashMap={strikeFlashMap}
           openSignal={drawerSignal}
+          view={drawerView}
+          onViewChange={setDrawerView}
         />
 
         {/* ============ INVITE CODE (only when no P2) ============ */}

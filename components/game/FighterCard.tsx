@@ -94,98 +94,10 @@ export function FighterCard({
         paddingHorizontal: 2,
       }}
     >
-      {/* Name + leader crown */}
-      <View
-        style={{
-          flexDirection: 'row',
-          alignItems: 'center',
-          justifyContent: side === 'left' ? 'flex-start' : 'flex-end',
-          marginBottom: 4,
-          minHeight: 18,
-        }}
-      >
-        {side === 'left' && isLeader && (
-          <Text style={{ fontSize: 14, marginRight: 4 }}>👑</Text>
-        )}
-        <Text
-          style={{
-            fontFamily: 'PressStart2P',
-            color: accentHex,
-            fontSize: 10,
-            letterSpacing: 1,
-          }}
-        >
-          {side === 'left' ? 'P1' : 'P2'}
-          {player?.display_name ? ` · ${player.display_name.toUpperCase()}` : ''}
-        </Text>
-        {side === 'right' && isLeader && (
-          <Text style={{ fontSize: 14, marginLeft: 4 }}>👑</Text>
-        )}
-      </View>
-
-      {/* Score bar */}
-      <View
-        style={{
-          height: 14,
-          backgroundColor: '#000000',
-          borderWidth: 2,
-          borderColor: '#FFFFFF',
-          marginBottom: 6,
-          overflow: 'hidden',
-          flexDirection: side === 'left' ? 'row' : 'row-reverse',
-        }}
-      >
-        <MotiView
-          from={{ width: '0%' }}
-          animate={{ width: `${fill * 100}%` }}
-          transition={{ type: 'timing', duration: 450 }}
-          style={{
-            height: '100%',
-            backgroundColor: debt ? debtAccent(debt.variant) : accentHex,
-          }}
-        />
-      </View>
-      <View
-        style={{
-          flexDirection: side === 'left' ? 'row' : 'row-reverse',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          marginBottom: 4,
-        }}
-      >
-        <Text
-          style={{
-            fontFamily: 'PressStart2P',
-            color: '#FFFFFF',
-            fontSize: 12,
-          }}
-        >
-          {`XP ${score}`}
-        </Text>
-        {coins != null && (
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-            <Image
-              source={COIN_SPRITE}
-              style={{ width: 12, height: 12 }}
-              resizeMode="contain"
-            />
-            <Text
-              style={{
-                fontFamily: 'PressStart2P',
-                color: '#FFCC00',
-                fontSize: 10,
-              }}
-            >
-              {coins.toLocaleString()}
-            </Text>
-          </View>
-        )}
-      </View>
-
       {/* Character stage */}
       <View
         style={{
-          height: 160,
+          height: 190,
           alignItems: 'center',
           justifyContent: 'flex-end',
           paddingBottom: 4,
@@ -250,11 +162,13 @@ export function FighterCard({
           </MotiView>
         )}
 
-        {/* Shadow pulse */}
-        {meta && (
+        {debt && <DebtFloor variant={debt.variant} />}
+
+        {/* Leader crown — bobs above the sprite's head */}
+        {isLeader && (
           <MotiView
-            from={{ scaleX: 1, opacity: 0.55 }}
-            animate={{ scaleX: 0.75, opacity: 0.85 }}
+            from={{ translateY: 0 }}
+            animate={{ translateY: -6 }}
             transition={{
               type: 'timing',
               duration: 900,
@@ -263,17 +177,18 @@ export function FighterCard({
             }}
             style={{
               position: 'absolute',
-              bottom: 2,
-              width: 90,
-              height: 6,
-              backgroundColor: accentHex,
-              opacity: 0.55,
-              borderRadius: 999,
+              top: -34,
+              alignSelf: 'center',
+              zIndex: 5,
             }}
-          />
+          >
+            <Image
+              source={require('@/assets/sprites/crown.png')}
+              style={{ width: 40, height: 30 }}
+              resizeMode="contain"
+            />
+          </MotiView>
         )}
-
-        {debt && <DebtFloor variant={debt.variant} />}
 
         {/* Sprite: bob + subtle breathing pace. No lunge layer — the attack
             sprite sheet itself plays the strike motion. */}
@@ -305,7 +220,7 @@ export function FighterCard({
                   frameCount={activeSheet.frames}
                   sourceFrameWidth={activeSheet.frameW ?? DEFAULT_SHEET_FRAME_W}
                   sourceFrameHeight={activeSheet.frameH ?? DEFAULT_SHEET_FRAME_H}
-                  displayWidth={140}
+                  displayWidth={180}
                   frameDurationMs={activeSheet.durationMs ?? 120}
                   facingFlip={facingFlip as 1 | -1}
                 />
@@ -313,8 +228,8 @@ export function FighterCard({
                 <Image
                   source={meta.sprite}
                   style={{
-                    width: 140,
-                    height: 140,
+                    width: 180,
+                    height: 180,
                     transform: [{ scaleX: facingFlip }],
                   }}
                   resizeMode="contain"
@@ -326,8 +241,91 @@ export function FighterCard({
           <EmptySlot side={side} />
         )}
       </View>
+
+      {/* Name — centered between sprite and bar */}
+      <View
+        style={{
+          alignItems: 'center',
+          marginTop: 8,
+          marginBottom: 4,
+          minHeight: 18,
+        }}
+      >
+        <Text
+          style={{
+            fontFamily: 'PressStart2P',
+            color: accentHex,
+            fontSize: 10,
+            letterSpacing: 1,
+          }}
+        >
+          {side === 'left' ? 'P1' : 'P2'}
+          {player?.display_name ? ` · ${player.display_name.toUpperCase()}` : ''}
+        </Text>
+      </View>
+
+      {/* Score bar — BELOW name */}
+      <View
+        style={{
+          height: 14,
+          backgroundColor: '#000000',
+          borderWidth: 2,
+          borderColor: '#FFFFFF',
+          marginBottom: 6,
+          overflow: 'hidden',
+          flexDirection: side === 'left' ? 'row' : 'row-reverse',
+        }}
+      >
+        <MotiView
+          from={{ width: '0%' }}
+          animate={{ width: `${fill * 100}%` }}
+          transition={{ type: 'timing', duration: 450 }}
+          style={{
+            height: '100%',
+            backgroundColor: debt ? debtAccent(debt.variant) : accentHex,
+          }}
+        />
+      </View>
+
+      {/* XP + coins row — BELOW bar */}
+      <View
+        style={{
+          flexDirection: side === 'left' ? 'row' : 'row-reverse',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+        }}
+      >
+        <Text
+          style={{
+            fontFamily: 'PressStart2P',
+            color: '#FFFFFF',
+            fontSize: 12,
+          }}
+        >
+          {`XP ${score}`}
+        </Text>
+        {coins != null && (
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+            <Image
+              source={COIN_SPRITE}
+              style={{ width: 12, height: 12 }}
+              resizeMode="contain"
+            />
+            <Text
+              style={{
+                fontFamily: 'PressStart2P',
+                color: '#FFCC00',
+                fontSize: 10,
+              }}
+            >
+              {coins.toLocaleString()}
+            </Text>
+          </View>
+        )}
+      </View>
+
       {debt && (
-        <View style={{ marginTop: 2, alignItems: 'center' }}>
+        <View style={{ marginTop: 4, alignItems: 'center' }}>
           <DebtCaption variant={debt.variant} itemName={debt.itemName} />
         </View>
       )}
@@ -339,8 +337,8 @@ function EmptySlot({ side }: { side: 'left' | 'right' }) {
   return (
     <View
       style={{
-        width: 140,
-        height: 140,
+        width: 180,
+        height: 180,
         borderWidth: 3,
         borderColor: '#4A4A4A',
         borderStyle: 'dashed',

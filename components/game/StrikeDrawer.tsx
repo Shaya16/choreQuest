@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo } from 'react';
 import { Image, Pressable, Text, View } from 'react-native';
 import { MotiView } from 'moti';
 import * as Haptics from 'expo-haptics';
@@ -18,19 +18,22 @@ type Props = {
   strikeFlashMap: Record<string, number>;
   /** Bumped by the caller to force the drawer open (e.g. from a push tap). */
   openSignal?: number;
+  /** Controlled view state, owned by the parent. */
+  view: DrawerView;
+  onViewChange: (next: DrawerView) => void;
 };
 
-type DrawerView = 'collapsed' | 'picker' | World;
+export type DrawerView = 'collapsed' | 'picker' | World;
 
 /**
  * Cabinet-drawer arsenal with a character-select mental model:
- *   picker → 3×2 grid of chunky "world cards" (default view; pick a world)
+ *   picker → 3×2 grid of chunky "world cards"
  *   world  → that world's moves, with a ◀ BACK pill
- *   collapsed → header only; tap to reopen
+ *   collapsed → peek-handle only; tap to reopen
  *
- * World cards are styled like fighting-game character-select tiles: corner
- * brackets, big emoji, ammo pill, drop-shadow slab that they slide into on
- * press. Household world's tier divisions surface once you're inside it.
+ * Controlled by the parent (home screen) so the Stage can react to open/close.
+ * Header renders as a centered peek handle that visually overlaps the bottom
+ * edge of the Stage above it via negative top margin.
  */
 export function StrikeDrawer({
   activities,
@@ -40,15 +43,16 @@ export function StrikeDrawer({
   onStrike,
   strikeFlashMap,
   openSignal,
+  view,
+  onViewChange,
 }: Props) {
-  const [view, setView] = useState<DrawerView>('picker');
   const expanded = view !== 'collapsed';
 
   // External signal to expand the drawer (e.g. notification tap).
-  // Skip the initial mount since view already defaults to 'picker'.
   useEffect(() => {
     if (openSignal === undefined) return;
-    setView('picker');
+    onViewChange('picker');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [openSignal]);
 
   const totalAmmo = useMemo(() => {
@@ -63,26 +67,27 @@ export function StrikeDrawer({
   }, [activities, todayCounts]);
 
   function toggleHeader() {
-    setView((prev) => (prev === 'collapsed' ? 'picker' : 'collapsed'));
+    onViewChange(view === 'collapsed' ? 'picker' : 'collapsed');
   }
 
   return (
     <View
       style={{
-        marginTop: 10,
+        marginTop: -18,
         backgroundColor: '#000000',
         borderWidth: 3,
         borderColor: '#FFCC00',
+        zIndex: 20,
       }}
     >
-      {/* ============ ARSENAL HEADER (toggles open/closed) ============ */}
+      {/* ============ ACTIVITY ARSENAL HEADER (peek bar; toggles open/closed) ============ */}
       <Pressable onPress={toggleHeader}>
         {({ pressed }) => (
           <View
             style={{
               backgroundColor: '#FFCC00',
-              paddingHorizontal: 10,
-              paddingVertical: 6,
+              paddingHorizontal: 14,
+              paddingVertical: 12,
               flexDirection: 'row',
               justifyContent: 'space-between',
               alignItems: 'center',
@@ -93,18 +98,18 @@ export function StrikeDrawer({
               style={{
                 fontFamily: 'PressStart2P',
                 color: '#000000',
-                fontSize: 10,
+                fontSize: 13,
                 letterSpacing: 2,
               }}
             >
-              ◆ ARSENAL ◆
+              ◆ ACTIVITY ARSENAL ◆
             </Text>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
               <Text
                 style={{
                   fontFamily: 'Silkscreen',
                   color: '#000000',
-                  fontSize: 10,
+                  fontSize: 12,
                   letterSpacing: 1,
                 }}
               >
@@ -114,7 +119,7 @@ export function StrikeDrawer({
                 style={{
                   fontFamily: 'PressStart2P',
                   color: '#000000',
-                  fontSize: 14,
+                  fontSize: 18,
                 }}
               >
                 {expanded ? '▴' : '▾'}
@@ -124,71 +129,78 @@ export function StrikeDrawer({
         )}
       </Pressable>
 
-      {/* ============ NO-ROUND WARNING ============ */}
-      {!roundActive && !loading && (
-        <View
-          style={{
-            borderTopWidth: 2,
-            borderTopColor: '#FF3333',
-            padding: 8,
-          }}
-        >
-          <Text
-            style={{
-              fontFamily: 'PressStart2P',
-              color: '#FF3333',
-              fontSize: 9,
-              textAlign: 'center',
-            }}
-          >
-            ! NO ACTIVE ROUND — PAIR FIRST
-          </Text>
-        </View>
-      )}
+      {/* ============ DRAWER BODY (only when expanded) ============ */}
+      {expanded && (
+        <View>
 
-      {/* ============ PICKER — WORLD CARDS ============ */}
-      {view === 'picker' && roundActive && (
-        <MotiView
-          from={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ type: 'timing', duration: 180 }}
-          style={{ padding: 8 }}
-        >
-          <SubHeader label="◆ SELECT WORLD ◆" />
-          {loading ? (
-            <LoadingLine />
-          ) : (
-            <WorldGrid
-              activities={activities}
-              todayCounts={todayCounts}
-              onPick={(w) => setView(w)}
-            />
+
+          {/* ============ NO-ROUND WARNING ============ */}
+          {!roundActive && !loading && (
+            <View
+              style={{
+                borderTopWidth: 2,
+                borderTopColor: '#FF3333',
+                padding: 8,
+              }}
+            >
+              <Text
+                style={{
+                  fontFamily: 'PressStart2P',
+                  color: '#FF3333',
+                  fontSize: 9,
+                  textAlign: 'center',
+                }}
+              >
+                ! NO ACTIVE ROUND — PAIR FIRST
+              </Text>
+            </View>
           )}
-        </MotiView>
-      )}
 
-      {/* ============ WORLD — MOVES ============ */}
-      {view !== 'collapsed' && view !== 'picker' && roundActive && (
-        <MotiView
-          from={{ opacity: 0, translateY: 6 }}
-          animate={{ opacity: 1, translateY: 0 }}
-          transition={{ type: 'timing', duration: 200 }}
-          style={{ padding: 8 }}
-        >
-          <WorldMovesHeader
-            world={view}
-            activities={activities[view] ?? []}
-            todayCounts={todayCounts}
-            onBack={() => setView('picker')}
-          />
-          <WorldMovesList
-            world={view}
-            activities={activities[view] ?? []}
-            todayCounts={todayCounts}
-            strikeFlashMap={strikeFlashMap}
-            onStrike={onStrike}
-          />
-        </MotiView>
+          {/* ============ PICKER — WORLD CARDS ============ */}
+          {view === 'picker' && roundActive && (
+            <MotiView
+              from={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ type: 'timing', duration: 180 }}
+              style={{ padding: 8 }}
+            >
+              <SubHeader label="◆ SELECT WORLD ◆" />
+              {loading ? (
+                <LoadingLine />
+              ) : (
+                <WorldGrid
+                  activities={activities}
+                  todayCounts={todayCounts}
+                  onPick={(w) => onViewChange(w)}
+                />
+              )}
+            </MotiView>
+          )}
+
+          {/* ============ WORLD — MOVES ============ */}
+          {view !== 'picker' && roundActive && (
+            <MotiView
+              from={{ opacity: 0, translateY: 6 }}
+              animate={{ opacity: 1, translateY: 0 }}
+              transition={{ type: 'timing', duration: 200 }}
+              style={{ padding: 8 }}
+            >
+              <WorldMovesHeader
+                world={view}
+                activities={activities[view] ?? []}
+                todayCounts={todayCounts}
+                onBack={() => onViewChange('picker')}
+              />
+              <WorldMovesList
+                world={view}
+                activities={activities[view] ?? []}
+                todayCounts={todayCounts}
+                strikeFlashMap={strikeFlashMap}
+                onStrike={onStrike}
+              />
+            </MotiView>
+          )}
+        </View>
       )}
     </View>
   );

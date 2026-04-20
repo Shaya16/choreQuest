@@ -26,8 +26,8 @@ export function VsDivider({ margin, leader, countdownLabel, roundNumber }: Props
         style={{
           fontFamily: 'PressStart2P',
           color: '#FFFFFF',
-          fontSize: 9,
-          marginBottom: 4,
+          fontSize: 14,
+          marginBottom: 6,
         }}
       >
         R{roundNumber}
@@ -47,11 +47,12 @@ export function VsDivider({ margin, leader, countdownLabel, roundNumber }: Props
           style={{
             fontFamily: 'PressStart2P',
             color: '#FFCC00',
-            fontSize: 22,
+            fontSize: 56,
+            lineHeight: 60,
             textShadowColor: '#FF3333',
-            textShadowOffset: { width: 2, height: 2 },
+            textShadowOffset: { width: 3, height: 3 },
             textShadowRadius: 0,
-            marginBottom: 6,
+            marginBottom: 10,
           }}
         >
           VS
@@ -62,8 +63,8 @@ export function VsDivider({ margin, leader, countdownLabel, roundNumber }: Props
         style={{
           fontFamily: 'PressStart2P',
           color: marginColor,
-          fontSize: 11,
-          marginBottom: 2,
+          fontSize: 18,
+          marginBottom: 3,
         }}
       >
         {leader === 'tied' ? 'TIED' : `+${absMargin}`}
@@ -72,7 +73,8 @@ export function VsDivider({ margin, leader, countdownLabel, roundNumber }: Props
         style={{
           fontFamily: 'Silkscreen',
           color: '#4A4A4A',
-          fontSize: 9,
+          fontSize: 12,
+          letterSpacing: 1,
         }}
       >
         MARGIN
