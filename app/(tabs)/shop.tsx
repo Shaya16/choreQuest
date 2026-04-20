@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useState } from 'react';
-import { Alert, Pressable, ScrollView, Text, View } from 'react-native';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Alert, Dimensions, Pressable, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useFocusEffect } from 'expo-router';
 import * as Haptics from 'expo-haptics';
@@ -7,7 +7,10 @@ import * as Haptics from 'expo-haptics';
 import { ArsenalRow } from '@/components/game/ArsenalRow';
 import { PurchaseCard } from '@/components/game/PurchaseCard';
 import { QueueRow } from '@/components/game/QueueRow';
+import { Shopkeep } from '@/components/game/Shopkeep';
 import { WalletHUD } from '@/components/game/WalletHUD';
+import { AffordabilityToast } from '@/components/ui/AffordabilityToast';
+import { SectionBanner } from '@/components/ui/SectionBanner';
 import {
   buyItem,
   confirmDelivery,
@@ -18,6 +21,8 @@ import {
   requestRedemption,
   type PurchaseWithItem,
 } from '@/lib/shop';
+import { accentForCategory } from '@/lib/shop-format';
+import { pickShopkeepLine } from '@/lib/shopkeep-lines';
 import { useSession } from '@/lib/store';
 import { supabase } from '@/lib/supabase';
 import { getSpendableCoins } from '@/lib/wallet';
@@ -39,6 +44,11 @@ const EMPTY_CATALOG: Record<ShopCategory, ShopItem[]> = {
   wildcard: [],
 };
 
+const SCREEN_PADDING = 16;
+const CARD_GAP = 12;
+const CARD_WIDTH =
+  (Dimensions.get('window').width - SCREEN_PADDING * 2 - CARD_GAP) / 2;
+
 export default function ShopScreen() {
   const player = useSession((s) => s.player);
   const couple = useSession((s) => s.couple);
@@ -49,6 +59,8 @@ export default function ShopScreen() {
   const [catalog, setCatalog] = useState<Record<ShopCategory, ShopItem[]>>(
     EMPTY_CATALOG
   );
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const reload = useCallback(async () => {
     if (!player || !couple) return;
@@ -82,17 +94,51 @@ export default function ShopScreen() {
     }, [reload])
   );
 
+  useEffect(() => {
+    return () => {
+      if (toastTimer.current) clearTimeout(toastTimer.current);
+    };
+  }, []);
+
+  function flashToast(message: string) {
+    if (toastTimer.current) clearTimeout(toastTimer.current);
+    setToastMessage(message);
+    toastTimer.current = setTimeout(() => setToastMessage(null), 1500);
+  }
+
   const { pendingStacks, awaiting } = groupArsenal(arsenal);
   const tokenCount = pendingStacks.reduce((n, s) => n + s.count, 0);
+
+  // Split queue rows into INCOMING (requested) and STOCKPILED (pending).
+  const incoming = useMemo(
+    () => queue.filter((p) => p.status === 'redemption_requested'),
+    [queue]
+  );
+  const stockpiled = useMemo(
+    () => queue.filter((p) => p.status === 'pending'),
+    [queue]
+  );
+
+  // Shopkeep line — picked once per render cycle from current state.
+  const shopkeepLine = useMemo(() => {
+    if (!player) return '';
+    return pickShopkeepLine({
+      playerId: player.id,
+      date: new Date(),
+      coins,
+      awaitingCount: awaiting.length,
+      incomingCount: incoming.length,
+    });
+  }, [player?.id, coins, awaiting.length, incoming.length]);
 
   function handleBuy(item: ShopItem) {
     if (!player) return;
     if (!partner) {
-      Alert.alert('No partner', 'Pair a partner first to buy from them.');
+      flashToast('PAIR A PARTNER FIRST');
       return;
     }
     if (coins < item.cost) {
-      Alert.alert('Not enough coins', `${item.cost}¢ needed. You have ${coins}¢.`);
+      flashToast(`NEED ${item.cost - coins} MORE COINS`);
       return;
     }
     Alert.alert(
@@ -117,20 +163,20 @@ export default function ShopScreen() {
     );
   }
 
-  function handleRedeem(item: ShopItem) {
-    if (!player) return;
+  function handleDeploy(item: ShopItem) {
+    if (!player || !partner) return;
     Alert.alert(
-      `Redeem ${item.name}?`,
-      `Your partner will be notified NOW that you want this.`,
+      `Deploy ${item.name}?`,
+      `${partner.display_name} will be notified now. No takebacks.`,
       [
         { text: 'Cancel', style: 'cancel' },
         {
-          text: 'Redeem',
+          text: 'Deploy',
           style: 'destructive',
           onPress: async () => {
             const { ok, error } = await requestRedemption(player.id, item.id);
             if (!ok) {
-              Alert.alert('Redeem failed', error ?? 'Unknown error.');
+              Alert.alert('Deploy failed', error ?? 'Unknown error.');
               return;
             }
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -195,33 +241,31 @@ export default function ShopScreen() {
         </Pressable>
       </View>
 
-      <WalletHUD
-        coins={coins}
-        tokenCount={tokenCount}
-        awaitingCount={awaiting.length}
-      />
+      {/* Wallet + toast container (relative parent so toast can absolute-overlay) */}
+      <View style={{ position: 'relative' }}>
+        <WalletHUD
+          coins={coins}
+          tokenCount={tokenCount}
+          awaitingCount={awaiting.length}
+        />
+        <AffordabilityToast message={toastMessage} />
+      </View>
 
-      <ScrollView contentContainerStyle={{ padding: 16 }}>
+      {/* Shopkeep persona */}
+      {player && <Shopkeep line={shopkeepLine} />}
+
+      <ScrollView contentContainerStyle={{ padding: SCREEN_PADDING }}>
         {/* ARSENAL */}
         {(pendingStacks.length > 0 || awaiting.length > 0) && (
           <View style={{ marginBottom: 24 }}>
-            <Text
-              style={{
-                fontFamily: 'PressStart2P',
-                color: '#9EFA00',
-                fontSize: 11,
-                marginBottom: 12,
-              }}
-            >
-              ▸ YOUR ARSENAL
-            </Text>
+            <SectionBanner label="▸ YOUR ARSENAL" color="#9EFA00" fontSize={11} />
             {pendingStacks.map((s) => (
               <ArsenalRow
                 key={`pend-${s.item.id}`}
                 variant="pending"
                 item={s.item}
                 count={s.count}
-                onRedeem={handleRedeem}
+                onRedeem={handleDeploy}
               />
             ))}
             {awaiting.map((p) =>
@@ -237,98 +281,96 @@ export default function ShopScreen() {
         )}
 
         {/* QUEUE */}
-        {queue.length > 0 && (
+        {(incoming.length > 0 || stockpiled.length > 0) && (
           <View style={{ marginBottom: 24 }}>
-            <Text
-              style={{
-                fontFamily: 'PressStart2P',
-                color: '#FF3333',
-                fontSize: 11,
-                marginBottom: 12,
-              }}
-            >
-              ▸ THEY WANT NOW
-            </Text>
-            {queue.map((p) => {
-              if (!p.shop_item || !partner) return null;
-              if (p.status === 'redemption_requested') {
-                return (
-                  <QueueRow
-                    key={p.id}
-                    variant="requested"
-                    purchaseId={p.id}
-                    item={p.shop_item}
-                    requestedAt={p.redemption_requested_at ?? p.purchased_at}
-                    partnerName={partner.display_name}
-                    onDeliver={handleDeliver}
-                  />
-                );
-              }
-              // Stockpiled: group by item_id manually for the target view.
-              return (
-                <QueueRow
-                  key={p.id}
-                  variant="stockpiled"
-                  item={p.shop_item}
-                  count={1}
-                  partnerName={partner.display_name}
+            {incoming.length > 0 && partner && (
+              <View style={{ marginBottom: stockpiled.length > 0 ? 16 : 0 }}>
+                <SectionBanner
+                  label="🚨 INCOMING"
+                  color="#FF3333"
+                  fontSize={11}
                 />
-              );
-            })}
+                {incoming.map((p) =>
+                  p.shop_item ? (
+                    <QueueRow
+                      key={p.id}
+                      variant="requested"
+                      purchaseId={p.id}
+                      item={p.shop_item}
+                      requestedAt={p.redemption_requested_at ?? p.purchased_at}
+                      partnerName={partner.display_name}
+                      onDeliver={handleDeliver}
+                    />
+                  ) : null
+                )}
+              </View>
+            )}
+
+            {stockpiled.length > 0 && partner && (
+              <View>
+                <SectionBanner
+                  label="💀 STOCKPILED ON YOU"
+                  color="#4A4A4A"
+                  fontSize={10}
+                />
+                {stockpiled.map((p) =>
+                  p.shop_item ? (
+                    <QueueRow
+                      key={p.id}
+                      variant="stockpiled"
+                      item={p.shop_item}
+                      count={1}
+                      partnerName={partner.display_name}
+                    />
+                  ) : null
+                )}
+              </View>
+            )}
           </View>
         )}
 
         {/* CATALOG */}
-        <Text
-          style={{
-            fontFamily: 'PressStart2P',
-            color: '#FFCC00',
-            fontSize: 11,
-            marginBottom: 12,
-          }}
-        >
-          ▸ CATALOG
-        </Text>
+        <SectionBanner label="▸ CATALOG" color="#FFCC00" fontSize={11} />
         {categoryOrder.map((cat) => {
           const items = catalog[cat];
           if (!items || items.length === 0) return null;
           return (
             <View key={cat} style={{ marginBottom: 20 }}>
-              <Text
-                style={{
-                  fontFamily: 'PressStart2P',
-                  color: '#FFFFFF',
-                  fontSize: 9,
-                  marginBottom: 10,
-                  letterSpacing: 1,
-                }}
-              >
-                {CATEGORY_LABELS[cat]}
-              </Text>
+              <SectionBanner
+                label={CATEGORY_LABELS[cat]}
+                color={accentForCategory(cat)}
+                fontSize={9}
+              />
               <View
                 style={{
                   flexDirection: 'row',
                   flexWrap: 'wrap',
-                  gap: 12,
+                  gap: CARD_GAP,
                 }}
               >
-                {items.map((item) => (
-                  <PurchaseCard
-                    key={item.id}
-                    item={item}
-                    affordable={coins >= item.cost && !!partner}
-                    disabledReason={
-                      !partner ? 'partner' : coins < item.cost ? 'afford' : null
-                    }
-                    onPress={handleBuy}
-                  />
-                ))}
+                {items.map((item) => {
+                  const affordable = coins >= item.cost && !!partner;
+                  const shortfall = Math.max(0, item.cost - coins);
+                  return (
+                    <PurchaseCard
+                      key={item.id}
+                      item={item}
+                      width={CARD_WIDTH}
+                      affordable={affordable}
+                      disabledReason={
+                        !partner ? 'partner' : coins < item.cost ? 'afford' : null
+                      }
+                      shortfall={shortfall}
+                      onPress={handleBuy}
+                    />
+                  );
+                })}
               </View>
             </View>
           );
         })}
 
-        <View style={{ height: 40 }} />
+        <View style={{ height: 60 }} />
       </ScrollView>
     </SafeAreaView>
   );
