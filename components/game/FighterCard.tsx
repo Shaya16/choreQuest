@@ -4,6 +4,7 @@ import { MotiView } from 'moti';
 
 import { AnimatedSprite } from './AnimatedSprite';
 import { DebtCaption, DebtFloor, debtAccent, type DebtVariant } from './DebtBadge';
+import { DebtChip } from '../ui/DebtChip';
 import {
   ACCENT_HEX,
   CLASS_META,
@@ -23,6 +24,8 @@ type Props = {
   maxScoreHint: number;
   coins?: number;
   debt?: { variant: DebtVariant; itemName: string } | null;
+  inDebt?: boolean;
+  onDebtPress?: () => void;
 };
 
 export function FighterCard({
@@ -35,6 +38,8 @@ export function FighterCard({
   maxScoreHint,
   coins,
   debt,
+  inDebt,
+  onDebtPress,
 }: Props) {
   const meta = player ? CLASS_META[player.arcade_class] : null;
   const accentHex = meta ? ACCENT_HEX[meta.accent] : '#4A4A4A';
@@ -122,6 +127,18 @@ export function FighterCard({
           <Text style={{ fontSize: 14, marginLeft: 4 }}>👑</Text>
         )}
       </View>
+
+      {inDebt && (
+        <View
+          style={{
+            flexDirection: 'row',
+            justifyContent: side === 'left' ? 'flex-start' : 'flex-end',
+            marginBottom: 4,
+          }}
+        >
+          <DebtChip onPress={onDebtPress} />
+        </View>
+      )}
 
       {/* Score bar */}
       <View
