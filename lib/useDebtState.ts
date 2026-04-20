@@ -5,7 +5,7 @@
 // on a 5-minute timer so the 24h-grace boundary flips without a manual
 // reload.
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { supabase } from './supabase';
 import { computeDebtState, type DebtState } from './debt';
 import type { Purchase, Round } from './types';
@@ -23,12 +23,17 @@ export function useDebtState(
 ): { state: DebtState; refetch: () => Promise<void>; loading: boolean } {
   const [state, setState] = useState<DebtState>(EMPTY);
   const [loading, setLoading] = useState<boolean>(false);
+  // Fetch-generation counter — if a later fetch starts before an earlier
+  // one resolves (or IDs change mid-flight), the earlier one's setState is
+  // suppressed so we never commit stale data over fresh data.
+  const fetchGen = useRef(0);
 
   const refetch = useCallback(async () => {
     if (!playerId || !coupleId) {
       setState(EMPTY);
       return;
     }
+    const gen = ++fetchGen.current;
     setLoading(true);
     try {
       const [{ data: purchases }, { data: rounds }] = await Promise.all([
@@ -45,6 +50,7 @@ export function useDebtState(
           .neq('winner_id', playerId)
           .eq('tribute_paid', false),
       ]);
+      if (gen !== fetchGen.current) return; // superseded
       const s = computeDebtState({
         playerId,
         coupleId,
@@ -54,7 +60,7 @@ export function useDebtState(
       });
       setState(s);
     } finally {
-      setLoading(false);
+      if (gen === fetchGen.current) setLoading(false);
     }
   }, [playerId, coupleId]);
 
