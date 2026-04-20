@@ -1,4 +1,5 @@
 import { Pressable, Text, View } from 'react-native';
+import { MotiView } from 'moti';
 import * as Haptics from 'expo-haptics';
 
 import type { ShopItem } from '@/lib/types';
@@ -22,76 +23,110 @@ type StockpiledProps = {
 type Props = RequestedProps | StockpiledProps;
 
 /**
- * One row in the target's QUEUE. Requested variant shows timestamp + big
- * DELIVERED button. Stockpiled variant is informational only (partner has
- * bought but hasn't called in yet).
+ * Target's queue row. Requested = high-prominence with blinking red dot and
+ * heavy DELIVER NOW button. Stockpiled = ambient gray with no motion.
  */
 export function QueueRow(props: Props) {
   const { item } = props;
+  const isRequested = props.variant === 'requested';
   return (
     <View
       style={{
         backgroundColor: '#000',
-        borderWidth: 2,
-        borderColor: props.variant === 'requested' ? '#FF3333' : '#4A4A4A',
-        padding: 12,
+        borderWidth: isRequested ? 3 : 2,
+        borderColor: isRequested ? '#FF3333' : '#4A4A4A',
         marginBottom: 8,
-        flexDirection: 'row',
-        alignItems: 'center',
+        position: 'relative',
+        padding: 12,
       }}
     >
-      <Text style={{ fontSize: 28, marginRight: 12 }}>{extractIcon(item.name)}</Text>
-      <View style={{ flex: 1 }}>
-        <Text
-          style={{
-            fontFamily: 'PressStart2P',
-            color: '#FFFFFF',
-            fontSize: 9,
-          }}
-        >
-          {stripIcon(item.name).toUpperCase()}
-          {props.variant === 'stockpiled' && props.count > 1
-            ? `  ×${props.count}`
-            : ''}
-        </Text>
-        <Text
-          style={{
-            fontFamily: 'PressStart2P',
-            color: props.variant === 'requested' ? '#FF3333' : '#4A4A4A',
-            fontSize: 7,
-            marginTop: 4,
-          }}
-        >
-          {props.variant === 'requested'
-            ? `${props.partnerName} called this in ${formatRelative(props.requestedAt)}`
-            : `${props.partnerName} has these saved up · brace`}
-        </Text>
-      </View>
-      {props.variant === 'requested' && (
-        <Pressable
-          onPress={() => {
-            Haptics.notificationAsync(
-              Haptics.NotificationFeedbackType.Success
-            );
-            props.onDeliver(props.purchaseId);
+      {/* Blinking red dot for incoming */}
+      {isRequested && (
+        <MotiView
+          from={{ opacity: 1 }}
+          animate={{ opacity: 0.2 }}
+          transition={{
+            type: 'timing',
+            duration: 500,
+            loop: true,
+            repeatReverse: true,
           }}
           style={{
-            borderWidth: 2,
-            borderColor: '#9EFA00',
-            paddingHorizontal: 12,
-            paddingVertical: 8,
+            position: 'absolute',
+            top: 8,
+            left: 8,
+            width: 10,
+            height: 10,
+            borderRadius: 5,
+            backgroundColor: '#FF3333',
+            zIndex: 5,
           }}
-        >
+        />
+      )}
+
+      <View
+        style={{
+          flexDirection: 'row',
+          alignItems: 'center',
+          gap: 12,
+          marginLeft: isRequested ? 14 : 0,
+        }}
+      >
+        <Text style={{ fontSize: 28 }}>{extractIcon(item.name)}</Text>
+        <View style={{ flex: 1 }}>
           <Text
             style={{
               fontFamily: 'PressStart2P',
-              color: '#9EFA00',
-              fontSize: 8,
+              color: '#FFFFFF',
+              fontSize: 9,
+              lineHeight: 14,
             }}
           >
-            ✓ DELIVERED
+            {stripIcon(item.name).toUpperCase()}
+            {!isRequested && props.count > 1 ? `  ×${props.count}` : ''}
           </Text>
-        </Pressable>
+          <Text
+            style={{
+              fontFamily: 'PressStart2P',
+              color: isRequested ? '#FF3333' : '#4A4A4A',
+              fontSize: 7,
+              marginTop: 4,
+            }}
+          >
+            {isRequested
+              ? `${props.partnerName} called this in ${formatRelative(props.requestedAt)}`
+              : `${props.partnerName} HAS THESE SAVED · BRACE`}
+          </Text>
+        </View>
+      </View>
+
+      {isRequested && (
+        <View style={{ marginTop: 10 }}>
+          <Pressable
+            onPress={() => {
+              Haptics.notificationAsync(
+                Haptics.NotificationFeedbackType.Success
+              );
+              props.onDeliver(props.purchaseId);
+            }}
+            style={{
+              backgroundColor: '#9EFA00',
+              paddingVertical: 10,
+              alignItems: 'center',
+            }}
+          >
+            <Text
+              style={{
+                fontFamily: 'PressStart2P',
+                color: '#000',
+                fontSize: 9,
+                letterSpacing: 1,
+              }}
+            >
+              ✓ DELIVER NOW
+            </Text>
+          </Pressable>
+        </View>
       )}
     </View>
   );
