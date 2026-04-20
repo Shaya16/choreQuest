@@ -350,28 +350,19 @@ export default function ShopScreen() {
                     >
                       {ageLabel}
                     </Text>
-                    <View style={{ flexDirection: 'row', gap: 8, marginTop: 4 }}>
-                      <Pressable
-                        onPress={() => {
-                          // PAY: v1 punts — user can redeem via INCOMING flow.
-                          // A proper deep-link is deferred.
-                        }}
+                    <View style={{ flexDirection: 'row', gap: 8, marginTop: 4, alignItems: 'center' }}>
+                      {/* PAY deep-link deferred to v1.x; render a static hint
+                          instead of a tappable button that does nothing. */}
+                      <Text
                         style={{
-                          backgroundColor: '#00DDFF',
-                          paddingHorizontal: 10,
-                          paddingVertical: 4,
+                          fontFamily: 'PressStart2P',
+                          fontSize: 6,
+                          color: '#4A4A4A',
+                          letterSpacing: 1,
                         }}
                       >
-                        <Text
-                          style={{
-                            fontFamily: 'PressStart2P',
-                            fontSize: 7,
-                            color: '#000',
-                          }}
-                        >
-                          PAY
-                        </Text>
-                      </Pressable>
+                        PAY VIA INCOMING ↓
+                      </Text>
                       <Pressable
                         onPress={() =>
                           setAmnestyFor({

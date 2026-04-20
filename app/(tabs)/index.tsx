@@ -197,7 +197,7 @@ export default function HomeScreen() {
   useEffect(() => {
     if (!player?.id) return;
     void getSpendableCoins(player.id).then(setSpendable);
-  }, [player?.id, debtState]);
+  }, [player?.id, debtState.inDebt]);
 
   // Most recent closed round that's unresolved on the current player's side:
   // either the winner hasn't picked yet, the winner hasn't collected yet, or

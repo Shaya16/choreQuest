@@ -161,6 +161,7 @@ export type Purchase = {
   redemption_requested_at: string | null;
   redeemed_at: string | null;
   status: PurchaseStatus;
+  cancelled_via: 'amnesty' | 'buyer_cancel' | null;
 };
 
 export type JackpotGoal = {
@@ -200,7 +201,8 @@ export type PushTriggerType =
   | 'tribute_paid'
   | 'purchase_made'
   | 'redemption_requested'
-  | 'delivery_confirmed';
+  | 'delivery_confirmed'
+  | 'purchase_amnesty';
 
 export type PushState = {
   player_id: string;
