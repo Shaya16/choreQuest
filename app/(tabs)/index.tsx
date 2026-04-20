@@ -309,6 +309,7 @@ export default function HomeScreen() {
     coins: number;
     accent: string;
     side: 'left' | 'right' | 'center';
+    debuffed?: boolean;
   } | null>(null);
   const [firstStrikeBanner, setFirstStrikeBanner] = useState<{
     key: number;
@@ -354,6 +355,7 @@ export default function HomeScreen() {
       coins: row.coins_earned ?? 0,
       accent,
       side,
+      debuffed: debtState.debtMultiplier === 0.5,
     });
 
     // First-strike-of-day banner

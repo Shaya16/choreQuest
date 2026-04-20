@@ -7,6 +7,8 @@ type Burst = {
   coins: number;
   accent: string;
   side: 'left' | 'right' | 'center';
+  /** When true, the player was debuffed — halve visual intensity to match the halved coin payout. */
+  debuffed?: boolean;
 };
 
 type Props = {
@@ -35,14 +37,18 @@ export function StrikeProjectile({ burst }: Props) {
 
   if (!burst || !visible) return null;
 
+  // Halve intensity when debuffed so the landed-hit reads as weaker
+  // (matches the half-payout that showed up in the drawer preview).
+  const intensity = burst.debuffed ? 0.5 : 1;
+
   // Launch-point: bottom-center. Destination: top-left/right/center.
   const destX =
     burst.side === 'left'
-      ? -(screenW * 0.35)
+      ? -(screenW * 0.35) * intensity
       : burst.side === 'right'
-        ? screenW * 0.35
+        ? screenW * 0.35 * intensity
         : 0;
-  const destY = -(screenH * 0.55);
+  const destY = -(screenH * 0.55) * intensity;
 
   return (
     <View
@@ -59,7 +65,7 @@ export function StrikeProjectile({ burst }: Props) {
       {/* Screen-edge flash */}
       <MotiView
         key={`flash-${burst.key}`}
-        from={{ opacity: 0.45 }}
+        from={{ opacity: 0.45 * intensity }}
         animate={{ opacity: 0 }}
         transition={{ type: 'timing', duration: 350 }}
         style={{
@@ -75,12 +81,12 @@ export function StrikeProjectile({ burst }: Props) {
       {/* Traveling "+N" */}
       <MotiView
         key={`proj-${burst.key}`}
-        from={{ translateX: 0, translateY: 0, opacity: 1, scale: 0.6 }}
+        from={{ translateX: 0, translateY: 0, opacity: 1, scale: 0.6 * intensity }}
         animate={{
           translateX: destX,
           translateY: destY,
           opacity: 0,
-          scale: 1.6,
+          scale: 1.6 * intensity,
         }}
         transition={{ type: 'timing', duration: 900 }}
         style={{
