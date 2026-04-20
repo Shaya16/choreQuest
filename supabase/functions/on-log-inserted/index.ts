@@ -51,10 +51,12 @@ type PurchaseRow = {
   redemption_requested_at: string | null;
   redeemed_at: string | null;
   status: string;
+  cancelled_via?: string | null;
 };
 type PurchaseMadePayload = { type: 'purchase_made'; purchase: PurchaseRow };
 type RedemptionRequestedPayload = { type: 'redemption_requested'; purchase: PurchaseRow };
 type DeliveryConfirmedPayload = { type: 'delivery_confirmed'; purchase: PurchaseRow };
+type PurchaseAmnestyPayload = { type: 'purchase_amnesty'; purchase: PurchaseRow };
 type DispatchPayload =
   | LogInsertPayload
   | RoundClosedPayload
@@ -62,7 +64,8 @@ type DispatchPayload =
   | TributePaidPayload
   | PurchaseMadePayload
   | RedemptionRequestedPayload
-  | DeliveryConfirmedPayload;
+  | DeliveryConfirmedPayload
+  | PurchaseAmnestyPayload;
 
 type TargetPlayer = {
   id: string;
@@ -108,6 +111,10 @@ Deno.serve(async (req: Request) => {
     }
     if (payload.type === 'delivery_confirmed') {
       await handleDeliveryConfirmed(admin, payload.purchase);
+      return new Response('ok', { status: 200 });
+    }
+    if (payload.type === 'purchase_amnesty') {
+      await handlePurchaseAmnesty(admin, payload.purchase);
       return new Response('ok', { status: 200 });
     }
   }
@@ -566,4 +573,46 @@ async function handleDeliveryConfirmed(
     data: { screen: 'home' },
   });
   await writeLastIndex(admin, buyer.id, 'delivery_confirmed', pick.index);
+}
+
+async function handlePurchaseAmnesty(
+  admin: SupabaseClient,
+  purchase: PurchaseRow
+): Promise<void> {
+  // Buyer gets the push — they're being refunded because the target paid
+  // amnesty (1.5x fee) to cancel the purchase. The "partner" in the
+  // notification text is the target (the one who paid amnesty).
+  if (!purchase.buyer_id || isQuietHours()) return;
+  const [{ data: buyer }, { data: target }, { data: item }] = await Promise.all([
+    admin
+      .from('players')
+      .select('id, display_name, expo_push_token')
+      .eq('id', purchase.buyer_id)
+      .maybeSingle(),
+    admin
+      .from('players')
+      .select('id, display_name')
+      .eq('id', purchase.target_id)
+      .maybeSingle(),
+    admin
+      .from('shop_items')
+      .select('name, cost')
+      .eq('id', purchase.shop_item_id)
+      .maybeSingle(),
+  ]);
+  if (!buyer?.expo_push_token) return;
+
+  const lastIndex = await readLastIndex(admin, buyer.id, 'purchase_amnesty');
+  const pick = pickVariant(VARIANTS.purchase_amnesty, lastIndex, {
+    partner: target?.display_name ?? 'partner',
+    item: item?.name ?? 'an item',
+    refund: item?.cost ?? 0,
+  });
+  await sendPush({
+    to: buyer.expo_push_token,
+    title: 'PURCHASE CANCELLED',
+    body: pick.text,
+    data: { screen: 'shop' },
+  });
+  await writeLastIndex(admin, buyer.id, 'purchase_amnesty', pick.index);
 }
