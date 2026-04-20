@@ -8,7 +8,6 @@ import * as Haptics from 'expo-haptics';
 import { ACCENT_HEX, CLASS_META } from '@/lib/characters';
 import { Stage } from '@/components/game/Stage';
 import { FighterCard } from '@/components/game/FighterCard';
-import { DebtBadge } from '@/components/game/DebtBadge';
 import { RedDotBadge } from '@/components/game/RedDotBadge';
 import { VsDivider } from '@/components/game/VsDivider';
 import { StrikeDrawer } from '@/components/game/StrikeDrawer';
@@ -21,270 +20,66 @@ import { supabase } from '@/lib/supabase';
 import { WORLD_META } from '@/lib/worlds';
 import type { Activity, Round, ShopItem } from '@/lib/types';
 
-function ActionTile({
+function PillButton({
   icon,
   label,
   subtitle,
   color,
   onPress,
-  bounceDelay = 0,
-  lampDelay = 0,
 }: {
   icon: string;
   label: string;
   subtitle?: string;
   color: string;
   onPress: () => void;
-  bounceDelay?: number;
-  lampDelay?: number;
 }) {
   return (
-    <Pressable onPress={onPress} style={{ flex: 1 }}>
+    <Pressable onPress={onPress}>
       {({ pressed }) => (
-        <View style={{ position: 'relative' }}>
-          {/* Drop shadow — disappears when button is pressed down into it */}
-          {!pressed && (
-            <View
+        <View
+          style={{
+            backgroundColor: '#000000',
+            borderWidth: 2,
+            borderColor: color,
+            paddingHorizontal: 10,
+            paddingVertical: 5,
+            flexDirection: 'row',
+            alignItems: 'center',
+            gap: 6,
+            opacity: pressed ? 0.7 : 1,
+          }}
+        >
+          <Text style={{ fontSize: 14 }}>{icon}</Text>
+          <View>
+            <Text
               style={{
-                position: 'absolute',
-                top: 4,
-                left: 4,
-                right: -4,
-                bottom: -4,
-                backgroundColor: '#000000',
-              }}
-            />
-          )}
-
-          {/* Button face — shifts into the shadow slot on press */}
-          <View
-            style={{
-              transform: [
-                { translateX: pressed ? 4 : 0 },
-                { translateY: pressed ? 4 : 0 },
-              ],
-              backgroundColor: color,
-              borderWidth: 3,
-              borderColor: '#000000',
-              paddingTop: 8,
-              paddingBottom: 6,
-              paddingHorizontal: 4,
-            }}
-          >
-            {/* Inner bevel — highlight top/left, shadow bottom/right. Inverts on press. */}
-            <View
-              pointerEvents="none"
-              style={{
-                position: 'absolute',
-                top: 0,
-                left: 0,
-                right: 0,
-                bottom: 0,
-                borderTopWidth: 2,
-                borderLeftWidth: 2,
-                borderTopColor: pressed ? 'rgba(0,0,0,0.35)' : 'rgba(255,255,255,0.55)',
-                borderLeftColor: pressed ? 'rgba(0,0,0,0.35)' : 'rgba(255,255,255,0.55)',
-                borderBottomWidth: 2,
-                borderRightWidth: 2,
-                borderBottomColor: pressed ? 'rgba(255,255,255,0.25)' : 'rgba(0,0,0,0.5)',
-                borderRightColor: pressed ? 'rgba(255,255,255,0.25)' : 'rgba(0,0,0,0.5)',
-              }}
-            />
-
-            {/* Corner lamp — blinks */}
-            <MotiView
-              from={{ opacity: 0.25 }}
-              animate={{ opacity: 1 }}
-              transition={{
-                type: 'timing',
-                duration: 600,
-                delay: lampDelay,
-                loop: true,
-                repeatReverse: true,
-              }}
-              style={{
-                position: 'absolute',
-                top: 4,
-                right: 4,
-                width: 4,
-                height: 4,
-                backgroundColor: '#FFFFFF',
-              }}
-            />
-
-            {/* Icon window — recessed inset */}
-            <View
-              style={{
-                alignSelf: 'center',
-                width: '90%',
-                height: 46,
-                backgroundColor: '#000000',
-                marginBottom: 6,
-                alignItems: 'center',
-                justifyContent: 'center',
-                borderTopWidth: 2,
-                borderLeftWidth: 2,
-                borderTopColor: 'rgba(0,0,0,0.85)',
-                borderLeftColor: 'rgba(0,0,0,0.85)',
-                borderBottomWidth: 2,
-                borderRightWidth: 2,
-                borderBottomColor: 'rgba(255,255,255,0.12)',
-                borderRightColor: 'rgba(255,255,255,0.12)',
+                fontFamily: 'PressStart2P',
+                color,
+                fontSize: 9,
+                letterSpacing: 2,
               }}
             >
-              <MotiView
-                from={{ translateY: 0 }}
-                animate={{ translateY: -3 }}
-                transition={{
-                  type: 'timing',
-                  duration: 700,
-                  delay: bounceDelay,
-                  loop: true,
-                  repeatReverse: true,
-                }}
-              >
-                <Text style={{ fontSize: 22 }}>{icon}</Text>
-              </MotiView>
-            </View>
-
-            {/* Label plate */}
-            <View
-              style={{
-                backgroundColor: '#000000',
-                paddingVertical: 3,
-                paddingHorizontal: 2,
-                alignItems: 'center',
-              }}
-            >
+              {label}
+            </Text>
+            {subtitle && (
               <Text
                 style={{
-                  fontFamily: 'PressStart2P',
-                  color,
-                  fontSize: 9,
+                  fontFamily: 'Silkscreen',
+                  color: '#FFFFFF',
+                  opacity: 0.65,
+                  fontSize: 8,
+                  marginTop: 2,
                   letterSpacing: 1,
                 }}
               >
-                {label}
+                {subtitle}
               </Text>
-              {subtitle && (
-                <Text
-                  style={{
-                    fontFamily: 'Silkscreen',
-                    color: '#FFFFFF',
-                    opacity: 0.55,
-                    fontSize: 9,
-                    marginTop: 1,
-                    letterSpacing: 1,
-                  }}
-                >
-                  {subtitle}
-                </Text>
-              )}
-            </View>
+            )}
           </View>
         </View>
       )}
     </Pressable>
   );
-}
-
-function ControlPanel({ children }: { children: React.ReactNode }) {
-  return (
-    <View
-      style={{
-        marginTop: 14,
-        backgroundColor: '#0a0a0a',
-        borderWidth: 2,
-        borderColor: '#4A4A4A',
-        paddingHorizontal: 8,
-        paddingTop: 0,
-        paddingBottom: 10,
-      }}
-    >
-      {/* Panel header strip */}
-      <View
-        style={{
-          marginHorizontal: -8,
-          marginBottom: 10,
-          backgroundColor: '#4A4A4A',
-          paddingVertical: 4,
-          paddingHorizontal: 8,
-          flexDirection: 'row',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-        }}
-      >
-        <Text
-          style={{
-            fontFamily: 'PressStart2P',
-            color: '#000000',
-            fontSize: 8,
-            letterSpacing: 2,
-          }}
-        >
-          ◆ CONTROL PANEL ◆
-        </Text>
-        <MotiView
-          from={{ opacity: 0.3 }}
-          animate={{ opacity: 1 }}
-          transition={{
-            type: 'timing',
-            duration: 500,
-            loop: true,
-            repeatReverse: true,
-          }}
-        >
-          <Text
-            style={{
-              fontFamily: 'PressStart2P',
-              color: '#9EFA00',
-              fontSize: 8,
-            }}
-          >
-            ● READY
-          </Text>
-        </MotiView>
-      </View>
-      <View style={{ flexDirection: 'row', gap: 8 }}>{children}</View>
-    </View>
-  );
-}
-
-function DebtBadgeMaybe({
-  round,
-  item,
-  fighterId,
-  viewerId,
-}: {
-  round: Round;
-  item: ShopItem;
-  fighterId: string;
-  viewerId: string;
-}) {
-  // Show OWES badge over the loser's fighter (always).
-  // Show COLLECTS badge over the loser's fighter on the winner's view too —
-  // since both badges live on the loser's sprite, just pick variant by viewer.
-  if (round.loser_id !== fighterId) return null;
-
-  const variant: 'owes' | 'collects' =
-    round.winner_id === viewerId ? 'collects' : 'owes';
-
-  return (
-    <DebtBadge
-      variant={variant}
-      itemIcon={extractIcon(item.name)}
-      itemLabel={stripIcon(item.name)}
-    />
-  );
-}
-
-function extractIcon(name: string): string {
-  const match = name.match(/^(\p{Emoji_Presentation}|\p{Extended_Pictographic})/u);
-  return match ? match[0] : '🎁';
-}
-
-function stripIcon(name: string): string {
-  return name.replace(/^(\p{Emoji_Presentation}|\p{Extended_Pictographic})\s*/u, '').trim();
 }
 
 function InviteBanner({ code }: { code: string }) {
@@ -375,7 +170,8 @@ export default function HomeScreen() {
 
   // Most recent closed round that's unresolved on the current player's side:
   // either the winner hasn't picked yet, the winner hasn't collected yet, or
-  // the loser still owes. Drives the home-screen Control Panel CTA + DebtBadge.
+  // the loser still owes. Drives the home-screen Control Panel CTA + the
+  // loser-anchored ball-and-chain indicator.
   const [pendingRound, setPendingRound] = useState<Round | null>(null);
   const [pendingItem, setPendingItem] = useState<ShopItem | null>(null);
 
@@ -443,7 +239,25 @@ export default function HomeScreen() {
   const isLoserDebt =
     !!pendingRound &&
     pendingRound.winner_id != null &&
-    pendingRound.winner_id !== player?.id;
+    pendingRound.winner_id !== player?.id &&
+    !!pendingRound.tribute_shop_item_id;
+
+  // Single source of truth for the on-Stage debt indicator. Loser-only, and
+  // only once the winner has picked a tribute item. Viewer-variant: if I'm
+  // the winner, the loser's chain labels as 'collects' (yellow YOU GET);
+  // otherwise 'owes' (red YOU OWE — I'm the loser).
+  const debtForLoser =
+    pendingRound && pendingItem && pendingRound.loser_id != null
+      ? {
+          variant:
+            pendingRound.winner_id === player?.id
+              ? ('collects' as const)
+              : ('owes' as const),
+          itemName: pendingItem.name
+            .replace(/^(\p{Emoji_Presentation}|\p{Extended_Pictographic})\s*/u, '')
+            .trim(),
+        }
+      : null;
 
   const p1Accent = p1 ? ACCENT_HEX[CLASS_META[p1.arcade_class].accent] : '#FFCC00';
   const p2Accent = p2 ? ACCENT_HEX[CLASS_META[p2.arcade_class].accent] : '#FF3333';
@@ -592,15 +406,25 @@ export default function HomeScreen() {
   return (
     <SafeAreaView className="flex-1 bg-bg" edges={['top']}>
       <ScrollView contentContainerStyle={{ paddingHorizontal: 8, paddingBottom: 16 }}>
-        {/* ============ TOP BAR (menu) ============ */}
+        {/* ============ TOP BAR (shop / menu) ============ */}
         <View
           style={{
             flexDirection: 'row',
-            justifyContent: 'flex-end',
+            justifyContent: 'space-between',
+            alignItems: 'center',
             marginTop: 4,
             marginBottom: 6,
           }}
         >
+          <View style={{ position: 'relative' }}>
+            <PillButton
+              icon="💰"
+              label="SHOP"
+              color="#FFCC00"
+              onPress={() => router.push('/(tabs)/shop')}
+            />
+            {shopQueueCount > 0 && <RedDotBadge />}
+          </View>
           <Pressable onPress={() => router.push('/(tabs)/menu')}>
             {({ pressed }) => (
               <View
@@ -645,7 +469,7 @@ export default function HomeScreen() {
         <View>
           <Stage
             accentHex={stageAccent}
-            height={420}
+            height={520}
             style={{
               borderWidth: 0,
               borderBottomWidth: 3,
@@ -660,9 +484,7 @@ export default function HomeScreen() {
               }}
             >
               <View style={{ flex: 5, justifyContent: 'flex-end' }}>
-                {/* P1 fighter wrapper — DebtBadge layers above when applicable.
-                    `alignSelf: 'stretch'` is required so FighterCard's flex:1
-                    still fills the parent column width. */}
+                {/* P1 fighter wrapper — FighterCard handles debt indicator internally. */}
                 <View style={{ flex: 1, position: 'relative' }}>
                   <FighterCard
                     player={p1}
@@ -672,15 +494,13 @@ export default function HomeScreen() {
                     attackKey={attackKeyP1}
                     lastDelta={lastDeltaP1}
                     maxScoreHint={maxScoreHint}
+                    coins={p1?.personal_wallet}
+                    debt={
+                      p1 && debtForLoser && pendingRound?.loser_id === p1.id
+                        ? debtForLoser
+                        : null
+                    }
                   />
-                  {pendingRound && pendingItem && p1 && (
-                    <DebtBadgeMaybe
-                      round={pendingRound}
-                      item={pendingItem}
-                      fighterId={p1.id}
-                      viewerId={player?.id ?? ''}
-                    />
-                  )}
                 </View>
               </View>
               <View style={{ flex: 3, justifyContent: 'center' }}>
@@ -692,7 +512,7 @@ export default function HomeScreen() {
                 />
               </View>
               <View style={{ flex: 5, justifyContent: 'flex-end' }}>
-                {/* P2 fighter wrapper — same layout fix as P1 above. */}
+                {/* P2 fighter wrapper — FighterCard handles debt indicator internally. */}
                 <View style={{ flex: 1, position: 'relative' }}>
                   <FighterCard
                     player={p2}
@@ -702,18 +522,90 @@ export default function HomeScreen() {
                     attackKey={attackKeyP2}
                     lastDelta={lastDeltaP2}
                     maxScoreHint={maxScoreHint}
+                    coins={p2?.personal_wallet}
+                    debt={
+                      p2 && debtForLoser && pendingRound?.loser_id === p2.id
+                        ? debtForLoser
+                        : null
+                    }
                   />
-                  {pendingRound && pendingItem && p2 && (
-                    <DebtBadgeMaybe
-                      round={pendingRound}
-                      item={pendingItem}
-                      fighterId={p2.id}
-                      viewerId={player?.id ?? ''}
-                    />
-                  )}
                 </View>
               </View>
             </View>
+
+            {/* ============ CONTEXTUAL OVERLAY (bottom-center, round-close CTA) ============ */}
+            {needsPick && pendingRound && (
+              <View
+                style={{
+                  position: 'absolute',
+                  bottom: 8,
+                  left: 0,
+                  right: 0,
+                  alignItems: 'center',
+                }}
+              >
+                <PillButton
+                  icon="🎁"
+                  label="CLAIM"
+                  subtitle="TRIBUTE"
+                  color="#9EFA00"
+                  onPress={() =>
+                    router.push({
+                      pathname: '/(round)/over',
+                      params: { roundId: pendingRound.id },
+                    })
+                  }
+                />
+              </View>
+            )}
+            {needsCollect && pendingRound && (
+              <View
+                style={{
+                  position: 'absolute',
+                  bottom: 8,
+                  left: 0,
+                  right: 0,
+                  alignItems: 'center',
+                }}
+              >
+                <PillButton
+                  icon="👑"
+                  label="COLLECT"
+                  subtitle={pendingItem?.name?.slice(0, 14)?.toUpperCase() ?? 'TRIBUTE'}
+                  color="#FFCC00"
+                  onPress={() =>
+                    router.push({
+                      pathname: '/(round)/over',
+                      params: { roundId: pendingRound.id },
+                    })
+                  }
+                />
+              </View>
+            )}
+            {isLoserDebt && pendingRound && (
+              <View
+                style={{
+                  position: 'absolute',
+                  bottom: 8,
+                  left: 0,
+                  right: 0,
+                  alignItems: 'center',
+                }}
+              >
+                <PillButton
+                  icon="💀"
+                  label="OWED"
+                  subtitle={pendingItem?.name?.slice(0, 14)?.toUpperCase()}
+                  color="#FF3333"
+                  onPress={() =>
+                    router.push({
+                      pathname: '/(round)/over',
+                      params: { roundId: pendingRound.id },
+                    })
+                  }
+                />
+              </View>
+            )}
           </Stage>
         </View>
 
@@ -730,72 +622,6 @@ export default function HomeScreen() {
 
         {/* ============ INVITE CODE (only when no P2) ============ */}
         {!p2 && <InviteBanner code={couple?.invite_code ?? '------'} />}
-
-        {/* ============ CONTROL PANEL ============ */}
-        {/* Jackpot button removed — co-op layer hidden per round-close+tribute design.
-            jackpot.tsx route stays on disk; re-enabling is restoring the ActionTile. */}
-        <ControlPanel>
-          <View style={{ position: 'relative' }}>
-            <ActionTile
-              icon="💰"
-              label="SHOP"
-              subtitle="REDEEM"
-              color="#FFCC00"
-              bounceDelay={0}
-              lampDelay={0}
-              onPress={() => router.push('/(tabs)/shop')}
-            />
-            {shopQueueCount > 0 && <RedDotBadge />}
-          </View>
-          {needsPick && pendingRound && (
-            <ActionTile
-              icon="🎁"
-              label="CLAIM"
-              subtitle="TRIBUTE"
-              color="#9EFA00"
-              bounceDelay={120}
-              lampDelay={200}
-              onPress={() =>
-                router.push({
-                  pathname: '/(round)/over',
-                  params: { roundId: pendingRound.id },
-                })
-              }
-            />
-          )}
-          {needsCollect && pendingRound && (
-            <ActionTile
-              icon="👑"
-              label="COLLECT"
-              subtitle={pendingItem?.name?.slice(0, 14)?.toUpperCase() ?? 'TRIBUTE'}
-              color="#FFCC00"
-              bounceDelay={120}
-              lampDelay={200}
-              onPress={() =>
-                router.push({
-                  pathname: '/(round)/over',
-                  params: { roundId: pendingRound.id },
-                })
-              }
-            />
-          )}
-          {isLoserDebt && pendingRound && (
-            <ActionTile
-              icon="💀"
-              label="OWED"
-              subtitle={pendingItem?.name?.slice(0, 14)?.toUpperCase() ?? 'TBD'}
-              color="#FF3333"
-              bounceDelay={120}
-              lampDelay={200}
-              onPress={() =>
-                router.push({
-                  pathname: '/(round)/over',
-                  params: { roundId: pendingRound.id },
-                })
-              }
-            />
-          )}
-        </ControlPanel>
       </ScrollView>
 
       {/* ============ STRIKE EFFECTS OVERLAY ============ */}

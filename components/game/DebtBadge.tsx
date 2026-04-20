@@ -1,96 +1,58 @@
-import { useEffect } from 'react';
 import { Text, View } from 'react-native';
-import Animated, {
-  useAnimatedStyle,
-  useSharedValue,
-  withRepeat,
-  withSequence,
-  withTiming,
-} from 'react-native-reanimated';
+import { MotiView } from 'moti';
 
-type Props = {
-  variant: 'owes' | 'collects';
-  itemIcon: string; // single emoji or short string
-  itemLabel?: string;
-};
+export type DebtVariant = 'owes' | 'collects';
 
-/**
- * Visual debt indicator placed above a fighter on the home Stage.
- *  - 'owes' → wraps the fighter in a chain badge + floats item icon above.
- *  - 'collects' → floats item icon above the (loser) fighter on the winner's
- *    arena, with a small CROWN beside.
- */
-export function DebtBadge({ variant, itemIcon, itemLabel }: Props) {
-  const bob = useSharedValue(0);
+export function debtAccent(variant: DebtVariant): string {
+  return variant === 'owes' ? '#FF3333' : '#FFCC00';
+}
 
-  useEffect(() => {
-    bob.value = withRepeat(
-      withSequence(
-        withTiming(-6, { duration: 700 }),
-        withTiming(0, { duration: 700 })
-      ),
-      -1,
-      false
-    );
-  }, []);
-
-  const floatStyle = useAnimatedStyle(() => ({
-    transform: [{ translateY: bob.value }],
-  }));
-
+export function DebtFloor({ variant }: { variant: DebtVariant }) {
   return (
-    <View
+    <MotiView
       pointerEvents="none"
+      from={{ opacity: 0.35, scaleX: 0.85 }}
+      animate={{ opacity: 0.7, scaleX: 1.1 }}
+      transition={{
+        type: 'timing',
+        duration: 1100,
+        loop: true,
+        repeatReverse: true,
+      }}
       style={{
         position: 'absolute',
-        top: -42,
-        left: 0,
-        right: 0,
-        alignItems: 'center',
+        bottom: 0,
+        width: 120,
+        height: 18,
+        borderRadius: 999,
+        backgroundColor: debtAccent(variant),
       }}
+    />
+  );
+}
+
+export function DebtCaption({
+  variant,
+  itemName,
+}: {
+  variant: DebtVariant;
+  itemName: string;
+}) {
+  const color = variant === 'owes' ? '#FF3333' : '#FFCC00';
+  const verb = variant === 'owes' ? 'YOU OWE' : 'OWES YOU';
+  return (
+    <Text
+      style={{
+        fontFamily: 'PressStart2P',
+        color,
+        fontSize: 9,
+        letterSpacing: 1,
+        textAlign: 'center',
+        maxWidth: 140,
+      }}
+      numberOfLines={2}
     >
-      <Animated.View style={floatStyle}>
-        <Text style={{ fontSize: 22 }}>{itemIcon}</Text>
-      </Animated.View>
-      {variant === 'owes' && (
-        <Text
-          style={{
-            fontFamily: 'PressStart2P',
-            color: '#FF3333',
-            fontSize: 6,
-            marginTop: 4,
-          }}
-        >
-          🔗 OWED
-        </Text>
-      )}
-      {variant === 'collects' && (
-        <Text
-          style={{
-            fontFamily: 'PressStart2P',
-            color: '#FFCC00',
-            fontSize: 6,
-            marginTop: 4,
-          }}
-        >
-          👑 COLLECT
-        </Text>
-      )}
-      {itemLabel && (
-        <Text
-          style={{
-            fontFamily: 'PressStart2P',
-            color: '#FFFFFF',
-            fontSize: 6,
-            marginTop: 2,
-            maxWidth: 120,
-            textAlign: 'center',
-          }}
-          numberOfLines={2}
-        >
-          {itemLabel.toUpperCase()}
-        </Text>
-      )}
-    </View>
+      {verb} {itemName.toUpperCase()}
+    </Text>
   );
 }

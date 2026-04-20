@@ -3,12 +3,14 @@ import { Image, Text, View } from 'react-native';
 import { MotiView } from 'moti';
 
 import { AnimatedSprite } from './AnimatedSprite';
+import { DebtCaption, DebtFloor, debtAccent, type DebtVariant } from './DebtBadge';
 import {
   ACCENT_HEX,
   CLASS_META,
   DEFAULT_SHEET_FRAME_H,
   DEFAULT_SHEET_FRAME_W,
 } from '@/lib/characters';
+import { COIN_SPRITE } from '@/lib/worlds';
 import type { Player } from '@/lib/types';
 
 type Props = {
@@ -19,6 +21,8 @@ type Props = {
   attackKey: number; // increments when this player lands a hit — triggers lunge + pop
   lastDelta: number | null;
   maxScoreHint: number;
+  coins?: number;
+  debt?: { variant: DebtVariant; itemName: string } | null;
 };
 
 export function FighterCard({
@@ -29,6 +33,8 @@ export function FighterCard({
   attackKey,
   lastDelta,
   maxScoreHint,
+  coins,
+  debt,
 }: Props) {
   const meta = player ? CLASS_META[player.arcade_class] : null;
   const accentHex = meta ? ACCENT_HEX[meta.accent] : '#4A4A4A';
@@ -135,14 +141,15 @@ export function FighterCard({
           transition={{ type: 'timing', duration: 450 }}
           style={{
             height: '100%',
-            backgroundColor: accentHex,
+            backgroundColor: debt ? debtAccent(debt.variant) : accentHex,
           }}
         />
       </View>
       <View
         style={{
-          flexDirection: 'row',
-          justifyContent: side === 'left' ? 'space-between' : 'space-between',
+          flexDirection: side === 'left' ? 'row' : 'row-reverse',
+          alignItems: 'center',
+          justifyContent: 'space-between',
           marginBottom: 4,
         }}
       >
@@ -153,17 +160,26 @@ export function FighterCard({
             fontSize: 12,
           }}
         >
-          {side === 'left' ? `${score}` : ''}
+          {`XP ${score}`}
         </Text>
-        <Text
-          style={{
-            fontFamily: 'PressStart2P',
-            color: '#FFFFFF',
-            fontSize: 12,
-          }}
-        >
-          {side === 'right' ? `${score}` : ''}
-        </Text>
+        {coins != null && (
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+            <Image
+              source={COIN_SPRITE}
+              style={{ width: 12, height: 12 }}
+              resizeMode="contain"
+            />
+            <Text
+              style={{
+                fontFamily: 'PressStart2P',
+                color: '#FFCC00',
+                fontSize: 10,
+              }}
+            >
+              {coins.toLocaleString()}
+            </Text>
+          </View>
+        )}
       </View>
 
       {/* Character stage */}
@@ -172,7 +188,8 @@ export function FighterCard({
           height: 160,
           alignItems: 'center',
           justifyContent: 'flex-end',
-          paddingBottom: 14,
+          paddingBottom: 4,
+          overflow: 'visible',
         }}
       >
         {/* Hidden preload — forces the attack PNG into the image cache so the
@@ -256,6 +273,8 @@ export function FighterCard({
           />
         )}
 
+        {debt && <DebtFloor variant={debt.variant} />}
+
         {/* Sprite: bob + subtle breathing pace. No lunge layer — the attack
             sprite sheet itself plays the strike motion. */}
         {meta ? (
@@ -307,6 +326,11 @@ export function FighterCard({
           <EmptySlot side={side} />
         )}
       </View>
+      {debt && (
+        <View style={{ marginTop: 2, alignItems: 'center' }}>
+          <DebtCaption variant={debt.variant} itemName={debt.itemName} />
+        </View>
+      )}
     </View>
   );
 }
