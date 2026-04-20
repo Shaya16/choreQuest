@@ -80,6 +80,8 @@ BEGIN
     RAISE EXCEPTION 'not_target';
   END IF;
 
+  -- Amnesty is allowed on 'pending' AND 'redemption_requested' so the target
+  -- retains a last line of defense even after the buyer has asked to redeem.
   IF v_purchase.status NOT IN ('pending', 'redemption_requested') THEN
     RAISE EXCEPTION 'purchase_not_open';
   END IF;
@@ -114,10 +116,12 @@ BEGIN
   INSERT INTO amnesty_fees (purchase_id, payer_id, amount)
     VALUES (p_purchase_id, v_caller_player_id, v_fee);
 
+  -- Intentionally NOT touching redeemed_at: that column means "buyer received
+  -- the reward", which did NOT happen here. status='cancelled' + cancelled_via
+  -- already encode everything a consumer needs.
   UPDATE purchases
      SET status = 'cancelled',
-         cancelled_via = 'amnesty',
-         redeemed_at = now()
+         cancelled_via = 'amnesty'
    WHERE id = p_purchase_id;
 
   RETURN QUERY SELECT
