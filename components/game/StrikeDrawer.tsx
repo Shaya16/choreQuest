@@ -70,63 +70,110 @@ export function StrikeDrawer({
   }, [activities, todayCounts]);
 
   function toggleHeader() {
+    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     onViewChange(view === 'collapsed' ? 'picker' : 'collapsed');
   }
 
   return (
-    <View
-      style={{
-        marginTop: -18,
-        backgroundColor: '#000000',
-        borderWidth: 3,
-        borderColor: '#FFCC00',
-        zIndex: 20,
-      }}
-    >
-      {/* ============ ACTIVITY ARSENAL HEADER (peek bar; toggles open/closed) ============ */}
+    <View style={{ marginTop: 6 }}>
+      {/* ============ ACTIVITY ARSENAL — chunky pixel button ============ */}
       <Pressable onPress={toggleHeader}>
         {({ pressed }) => (
-          <View
-            style={{
-              backgroundColor: '#FFCC00',
-              paddingHorizontal: 14,
-              paddingVertical: 12,
-              flexDirection: 'row',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              opacity: pressed ? 0.8 : 1,
-            }}
-          >
-            <Text
+          <View style={{ position: 'relative' }}>
+            {/* Drop shadow — disappears on press */}
+            {!pressed && (
+              <View
+                style={{
+                  position: 'absolute',
+                  top: 5,
+                  left: 5,
+                  right: -5,
+                  bottom: -5,
+                  backgroundColor: '#000000',
+                }}
+              />
+            )}
+
+            {/* Button face */}
+            <View
               style={{
-                fontFamily: 'PressStart2P',
-                color: '#000000',
-                fontSize: 13,
-                letterSpacing: 2,
+                backgroundColor: '#FFCC00',
+                borderWidth: 3,
+                borderColor: '#000000',
+                paddingHorizontal: 14,
+                paddingTop: 10,
+                paddingBottom: 8,
+                alignItems: 'center',
+                transform: [
+                  { translateX: pressed ? 5 : 0 },
+                  { translateY: pressed ? 5 : 0 },
+                ],
               }}
             >
-              ◆ ACTIVITY ARSENAL ◆
-            </Text>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+              {/* Inner bevel — highlight top/left, shadow bottom/right; inverts on press */}
+              <View
+                pointerEvents="none"
+                style={{
+                  position: 'absolute',
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  bottom: 0,
+                  borderTopWidth: 2,
+                  borderLeftWidth: 2,
+                  borderTopColor: pressed ? 'rgba(0,0,0,0.35)' : 'rgba(255,255,255,0.6)',
+                  borderLeftColor: pressed ? 'rgba(0,0,0,0.35)' : 'rgba(255,255,255,0.6)',
+                  borderBottomWidth: 2,
+                  borderRightWidth: 2,
+                  borderBottomColor: pressed ? 'rgba(255,255,255,0.25)' : 'rgba(0,0,0,0.45)',
+                  borderRightColor: pressed ? 'rgba(255,255,255,0.25)' : 'rgba(0,0,0,0.45)',
+                }}
+              />
+
+              <Text
+                style={{
+                  fontFamily: 'PressStart2P',
+                  color: '#000000',
+                  fontSize: 13,
+                  letterSpacing: 2,
+                }}
+              >
+                ◆ ACTIVITY ARSENAL ◆
+              </Text>
               <Text
                 style={{
                   fontFamily: 'Silkscreen',
                   color: '#000000',
                   fontSize: 12,
                   letterSpacing: 1,
+                  marginTop: 4,
+                  opacity: 0.75,
                 }}
               >
                 {totalAmmo} AMMO
               </Text>
-              <Text
-                style={{
-                  fontFamily: 'PressStart2P',
-                  color: '#000000',
-                  fontSize: 18,
+              <MotiView
+                from={{ translateY: 0, opacity: 0.6 }}
+                animate={{ translateY: 3, opacity: 1 }}
+                transition={{
+                  type: 'timing',
+                  duration: 700,
+                  loop: true,
+                  repeatReverse: true,
                 }}
+                style={{ marginTop: 4 }}
               >
-                {expanded ? '▴' : '▾'}
-              </Text>
+                <Text
+                  style={{
+                    fontFamily: 'PressStart2P',
+                    color: '#000000',
+                    fontSize: 12,
+                    letterSpacing: 4,
+                  }}
+                >
+                  {expanded ? '▴ TAP TO CLOSE ▴' : '▾ TAP TO OPEN ▾'}
+                </Text>
+              </MotiView>
             </View>
           </View>
         )}
@@ -134,7 +181,14 @@ export function StrikeDrawer({
 
       {/* ============ DRAWER BODY (only when expanded) ============ */}
       {expanded && (
-        <View>
+        <View
+          style={{
+            backgroundColor: '#000000',
+            borderWidth: 3,
+            borderColor: '#FFCC00',
+            marginTop: 6,
+          }}
+        >
 
 
           {/* ============ NO-ROUND WARNING ============ */}

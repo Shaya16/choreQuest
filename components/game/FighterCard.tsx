@@ -3,7 +3,7 @@ import { Image, Text, View } from 'react-native';
 import { MotiView } from 'moti';
 
 import { AnimatedSprite } from './AnimatedSprite';
-import { DebtCaption, DebtFloor, debtAccent, type DebtVariant } from './DebtBadge';
+import { DebtCaption, debtAccent, type DebtVariant } from './DebtBadge';
 import { DebtChip } from '../ui/DebtChip';
 import {
   ACCENT_HEX,
@@ -166,8 +166,6 @@ export function FighterCard({
             </Text>
           </MotiView>
         )}
-
-        {debt && <DebtFloor variant={debt.variant} />}
 
         {/* Leader crown — bobs above the sprite's head */}
         {isLeader && (
