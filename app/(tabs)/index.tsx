@@ -196,11 +196,29 @@ export default function HomeScreen() {
     itemCost: number;
   } | null>(null);
   const [spendable, setSpendable] = useState(0);
+  const [p1Coins, setP1Coins] = useState<number | undefined>(undefined);
+  const [p2Coins, setP2Coins] = useState<number | undefined>(undefined);
 
   useEffect(() => {
     if (!player?.id) return;
     void getSpendableCoins(player.id).then(setSpendable);
   }, [player?.id, debtState.inDebt]);
+
+  useEffect(() => {
+    if (!p1?.id) {
+      setP1Coins(undefined);
+      return;
+    }
+    void getSpendableCoins(p1.id).then(setP1Coins);
+  }, [p1?.id, lastEvent?.id]);
+
+  useEffect(() => {
+    if (!p2?.id) {
+      setP2Coins(undefined);
+      return;
+    }
+    void getSpendableCoins(p2.id).then(setP2Coins);
+  }, [p2?.id, lastEvent?.id]);
 
   // Most recent closed round that's unresolved on the current player's side:
   // either the winner hasn't picked yet, the winner hasn't collected yet, or
@@ -538,7 +556,7 @@ export default function HomeScreen() {
                     attackKey={attackKeyP1}
                     lastDelta={lastDeltaP1}
                     maxScoreHint={maxScoreHint}
-                    coins={p1?.personal_wallet}
+                    coins={p1Coins}
                     debt={
                       p1 && debtForLoser && pendingRound?.loser_id === p1.id
                         ? debtForLoser
@@ -583,7 +601,7 @@ export default function HomeScreen() {
                     attackKey={attackKeyP2}
                     lastDelta={lastDeltaP2}
                     maxScoreHint={maxScoreHint}
-                    coins={p2?.personal_wallet}
+                    coins={p2Coins}
                     debt={
                       p2 && debtForLoser && pendingRound?.loser_id === p2.id
                         ? debtForLoser
