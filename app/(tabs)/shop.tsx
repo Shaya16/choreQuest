@@ -26,6 +26,7 @@ import { accentForCategory } from '@/lib/shop-format';
 import { pickShopkeepLine } from '@/lib/shopkeep-lines';
 import { useSession } from '@/lib/store';
 import { supabase } from '@/lib/supabase';
+import { useDebtState } from '@/lib/useDebtState';
 import { getSpendableCoins } from '@/lib/wallet';
 import type { Player, ShopCategory, ShopItem } from '@/lib/types';
 
@@ -62,6 +63,10 @@ export default function ShopScreen() {
   );
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const { state: debtState } = useDebtState(
+    player?.id ?? null,
+    couple?.id ?? null
+  );
 
   const reload = useCallback(async () => {
     if (!player || !couple) return;
@@ -248,6 +253,7 @@ export default function ShopScreen() {
           coins={coins}
           tokenCount={tokenCount}
           awaitingCount={awaiting.length}
+          inDebt={debtState.inDebt}
         />
         <AnimatePresence>
           <AffordabilityToast message={toastMessage} />
