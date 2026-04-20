@@ -322,6 +322,15 @@ export type Database = {
         Args: Record<string, never>;
         Returns: string;
       };
+      purchase_amnesty: {
+        Args: { p_purchase_id: string };
+        Returns: {
+          fee: number;
+          refund: number;
+          target_spendable: number;
+          buyer_id: string;
+        }[];
+      };
     };
     Enums: Record<string, never>;
     CompositeTypes: Record<string, never>;

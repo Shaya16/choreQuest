@@ -179,3 +179,22 @@ export function groupArsenal(
     awaiting,
   };
 }
+
+export type AmnestyResult = {
+  fee: number;
+  refund: number;
+  target_spendable: number;
+  buyer_id: string;
+};
+
+export async function purchaseAmnesty(
+  purchaseId: string
+): Promise<{ ok: true; result: AmnestyResult } | { ok: false; error: string }> {
+  const { data, error } = await supabase.rpc('purchase_amnesty', {
+    p_purchase_id: purchaseId,
+  });
+  if (error) return { ok: false, error: error.message };
+  const row = Array.isArray(data) ? data[0] : data;
+  if (!row) return { ok: false, error: 'no_result' };
+  return { ok: true, result: row as AmnestyResult };
+}
