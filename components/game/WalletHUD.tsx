@@ -8,6 +8,7 @@ type Props = {
   coins: number;
   tokenCount: number;
   awaitingCount: number;
+  inDebt?: boolean;
 };
 
 /**
@@ -15,7 +16,7 @@ type Props = {
  * on prop change, and the inset display has a slow opacity pulse so the
  * register feels alive. Token count chip floats to the right.
  */
-export function WalletHUD({ coins, tokenCount, awaitingCount }: Props) {
+export function WalletHUD({ coins, tokenCount, awaitingCount, inDebt }: Props) {
   const displayed = useCountUp(coins, 500);
   return (
     <View
@@ -58,8 +59,22 @@ export function WalletHUD({ coins, tokenCount, awaitingCount }: Props) {
               borderColor: '#FFCC00',
               paddingHorizontal: 14,
               paddingVertical: 8,
+              flexDirection: 'row',
+              alignItems: 'center',
             }}
           >
+            {inDebt && (
+              <Text
+                style={{
+                  fontFamily: 'PressStart2P',
+                  fontSize: 10,
+                  color: '#FF3333',
+                  marginRight: 4,
+                }}
+              >
+                🔗
+              </Text>
+            )}
             <Text
               style={{
                 fontFamily: 'PressStart2P',

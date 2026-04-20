@@ -40,10 +40,17 @@ export type ComputedLogValues = {
  * Compute coin / xp / multipliers for a single strike.
  * v1 only wires player mult + combo mult; the rest of the schema multipliers
  * (crit/daily/weekly/season) stay at 1.0 until their systems activate.
+ *
+ * `debtMultiplier` (1.0 default, 0.5 under the debt debuff) halves
+ * `coins_earned` and `personal_share` only. XP and round_value are
+ * deliberately untouched: XP is a separate currency (constraint 11) and
+ * round_value drives cross-player competition, which must not be skewed by
+ * one player's debt state (doom-spiral prevention).
  */
 export function computeLogValues(
   activity: Activity,
-  player: Player
+  player: Player,
+  debtMultiplier: 1.0 | 0.5 = 1.0
 ): ComputedLogValues {
   const rawBase = (activity.base_value ?? 0) + (activity.bonus ?? 0);
   const mk = WORLD_META[activity.world].multKey;
@@ -57,7 +64,8 @@ export function computeLogValues(
   const multTotal =
     playerMult * comboMult * critMult * dailyBonusMult * weeklyHeroMult * seasonMult;
 
-  const coins = Math.max(0, Math.floor(rawBase * multTotal));
+  // Coins halve under the debt debuff. XP and round_value never do.
+  const coins = Math.max(0, Math.floor(rawBase * multTotal * debtMultiplier));
   const roundValue = Math.max(
     0,
     Math.floor((activity.round_value ?? 0) * multTotal)
@@ -72,10 +80,10 @@ export function computeLogValues(
     weekly_hero_multiplier: weeklyHeroMult,
     season_multiplier: seasonMult,
     coins_earned: coins,
-    xp_earned: rawBase,
-    jackpot_share: 0,
-    personal_share: coins,
-    round_value_earned: roundValue,
+    xp_earned: rawBase,       // unchanged — XP ignores debt
+    jackpot_share: 0,         // matches existing v1 behavior (no split)
+    personal_share: coins,    // coins halved → personal halved (single-wallet)
+    round_value_earned: roundValue, // unchanged — round competition protected
   };
 }
 
@@ -83,8 +91,13 @@ export async function createLog(args: {
   activity: Activity;
   player: Player;
   roundId: string;
+  debtMultiplier?: 1.0 | 0.5;
 }): Promise<Log | null> {
-  const values = computeLogValues(args.activity, args.player);
+  const values = computeLogValues(
+    args.activity,
+    args.player,
+    args.debtMultiplier ?? 1.0
+  );
   const { data, error } = await supabase
     .from('logs')
     .insert({

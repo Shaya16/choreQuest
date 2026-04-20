@@ -161,6 +161,7 @@ export type Purchase = {
   redemption_requested_at: string | null;
   redeemed_at: string | null;
   status: PurchaseStatus;
+  cancelled_via: 'amnesty' | 'buyer_cancel' | null;
 };
 
 export type JackpotGoal = {
@@ -178,6 +179,14 @@ export type JackpotGoal = {
   achieved_on: string | null;
 };
 
+export type AmnestyFee = {
+  id: string;
+  purchase_id: string;
+  payer_id: string;
+  amount: number;
+  paid_at: string;
+};
+
 export type PushTriggerType =
   | 'lead_flip'
   | 'milestone'
@@ -192,7 +201,8 @@ export type PushTriggerType =
   | 'tribute_paid'
   | 'purchase_made'
   | 'redemption_requested'
-  | 'delivery_confirmed';
+  | 'delivery_confirmed'
+  | 'purchase_amnesty';
 
 export type PushState = {
   player_id: string;
@@ -272,6 +282,13 @@ export type Database = {
         Update: Partial<PushState>;
         Relationships: NoRelationships;
       };
+      amnesty_fees: {
+        Row: AmnestyFee;
+        Insert: Partial<AmnestyFee> &
+          Pick<AmnestyFee, 'purchase_id' | 'payer_id' | 'amount'>;
+        Update: Partial<AmnestyFee>;
+        Relationships: NoRelationships;
+      };
     };
     Views: Record<string, never>;
     Functions: {
@@ -306,6 +323,15 @@ export type Database = {
       dev_stub_incoming_deploy: {
         Args: Record<string, never>;
         Returns: string;
+      };
+      purchase_amnesty: {
+        Args: { p_purchase_id: string };
+        Returns: {
+          fee: number;
+          refund: number;
+          target_spendable: number;
+          buyer_id: string;
+        }[];
       };
     };
     Enums: Record<string, never>;

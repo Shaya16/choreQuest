@@ -18,7 +18,8 @@ export type TriggerType =
   | 'tribute_paid'
   | 'purchase_made'
   | 'redemption_requested'
-  | 'delivery_confirmed';
+  | 'delivery_confirmed'
+  | 'purchase_amnesty';
 
 export const VARIANTS: Record<TriggerType, string[]> = {
   lead_flip: [
@@ -104,6 +105,12 @@ export const VARIANTS: Record<TriggerType, string[]> = {
     "{{item}}: paid in full. {{partner}} got theirs.",
     "{{partner}} confirmed {{item}}. closed clean.",
     "✓ done — {{item}}. {{partner}} is square.",
+  ],
+  purchase_amnesty: [
+    '{{partner}} cancelled "{{item}}". {{refund}}¢ refunded.',
+    '{{partner}} paid 1.5× to cancel "{{item}}". {{refund}}¢ back in your wallet.',
+    'your "{{item}}" token was cancelled by {{partner}}. {{refund}}¢ returned.',
+    '{{partner}} bought out of "{{item}}". {{refund}}¢ refunded.',
   ],
 };
 

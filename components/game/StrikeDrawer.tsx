@@ -21,6 +21,8 @@ type Props = {
   /** Controlled view state, owned by the parent. */
   view: DrawerView;
   onViewChange: (next: DrawerView) => void;
+  /** Halves coin previews (strikethrough + DEBT label) when 0.5. */
+  debtMultiplier?: 1.0 | 0.5;
 };
 
 export type DrawerView = 'collapsed' | 'picker' | World;
@@ -45,6 +47,7 @@ export function StrikeDrawer({
   openSignal,
   view,
   onViewChange,
+  debtMultiplier = 1.0,
 }: Props) {
   const expanded = view !== 'collapsed';
 
@@ -197,6 +200,7 @@ export function StrikeDrawer({
                 todayCounts={todayCounts}
                 strikeFlashMap={strikeFlashMap}
                 onStrike={onStrike}
+                debtMultiplier={debtMultiplier}
               />
             </MotiView>
           )}
@@ -782,12 +786,14 @@ function WorldMovesList({
   todayCounts,
   strikeFlashMap,
   onStrike,
+  debtMultiplier,
 }: {
   world: World;
   activities: Activity[];
   todayCounts: Record<string, number>;
   strikeFlashMap: Record<string, number>;
   onStrike: (activity: Activity) => void;
+  debtMultiplier: 1.0 | 0.5;
 }) {
   if (activities.length === 0) {
     return (
@@ -832,7 +838,7 @@ function WorldMovesList({
               >
                 ── {t.toUpperCase()}
               </Text>
-              {rows.map((a) => renderMoveRow(a, todayCounts, strikeFlashMap, onStrike))}
+              {rows.map((a) => renderMoveRow(a, todayCounts, strikeFlashMap, onStrike, debtMultiplier))}
             </View>
           );
         })}
@@ -842,7 +848,7 @@ function WorldMovesList({
 
   return (
     <View>
-      {activities.map((a) => renderMoveRow(a, todayCounts, strikeFlashMap, onStrike))}
+      {activities.map((a) => renderMoveRow(a, todayCounts, strikeFlashMap, onStrike, debtMultiplier))}
     </View>
   );
 }
@@ -851,7 +857,8 @@ function renderMoveRow(
   a: Activity,
   todayCounts: Record<string, number>,
   strikeFlashMap: Record<string, number>,
-  onStrike: (activity: Activity) => void
+  onStrike: (activity: Activity) => void,
+  debtMultiplier: 1.0 | 0.5
 ) {
   const used = todayCounts[a.id] ?? 0;
   const usesLeft = Math.max(0, (a.daily_cap ?? 0) - used);
@@ -864,6 +871,7 @@ function renderMoveRow(
       accentHex={WORLD_META[a.world].accentHex}
       onStrike={() => onStrike(a)}
       strikeFlashKey={strikeFlashMap[a.id] ?? 0}
+      debtMultiplier={debtMultiplier}
     />
   );
 }

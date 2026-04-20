@@ -1,0 +1,11 @@
+{
+  "imports": {
+    "react-native-url-polyfill/auto": "data:application/javascript,",
+    "@react-native-async-storage/async-storage": "data:application/javascript,export default {};",
+    "@supabase/supabase-js": "data:application/javascript,export function createClient(){return {};}",
+    "react-native": "data:application/javascript,export default {};",
+    "./supabase": "./logger.test.stubs/supabase.ts",
+    "./worlds": "./logger.test.stubs/worlds.ts",
+    "./timezone": "./logger.test.stubs/timezone.ts"
+  }
+}

@@ -12,11 +12,16 @@ import { RedDotBadge } from '@/components/game/RedDotBadge';
 import { VsDivider } from '@/components/game/VsDivider';
 import { StrikeDrawer, type DrawerView } from '@/components/game/StrikeDrawer';
 import { StrikeProjectile } from '@/components/game/StrikeProjectile';
+import { DebtModal } from '@/components/game/DebtModal';
+import { AmnestyConfirmModal } from '@/components/game/AmnestyConfirmModal';
 import { formatCountdown } from '@/lib/round';
 import { useRoundView } from '@/lib/useRoundView';
 import { useStrikeSelect } from '@/lib/useStrikeSelect';
+import { useDebtState } from '@/lib/useDebtState';
 import { useSession } from '@/lib/store';
 import { supabase } from '@/lib/supabase';
+import { markTributePaid } from '@/lib/tribute';
+import { getSpendableCoins } from '@/lib/wallet';
 import { WORLD_META } from '@/lib/worlds';
 import type { Activity, Round, ShopItem } from '@/lib/types';
 
@@ -167,9 +172,35 @@ export default function HomeScreen() {
   const player = useSession((s) => s.player);
   const couple = useSession((s) => s.couple);
   const view = useRoundView(couple);
-  const strike = useStrikeSelect(player, couple);
+  const { state: debtState, refetch: refetchDebt } = useDebtState(
+    player?.id ?? null,
+    couple?.id ?? null
+  );
+  const strike = useStrikeSelect(player, couple, debtState.debtMultiplier);
 
   const { p1, p2, stats, round, countdownSeconds, lastEvent } = view;
+
+  // Partner resolves as whichever of p1/p2 isn't the current player.
+  const partnerPlayer =
+    p1 && player && p1.id === player.id ? p2 : p1 && p2 && p2.id === player?.id ? p1 : null;
+  const { state: partnerDebtState } = useDebtState(
+    partnerPlayer?.id ?? null,
+    couple?.id ?? null
+  );
+
+  // Debt/amnesty modal state.
+  const [modalFor, setModalFor] = useState<'me' | 'partner' | null>(null);
+  const [amnestyFor, setAmnestyFor] = useState<{
+    purchaseId: string;
+    itemName: string;
+    itemCost: number;
+  } | null>(null);
+  const [spendable, setSpendable] = useState(0);
+
+  useEffect(() => {
+    if (!player?.id) return;
+    void getSpendableCoins(player.id).then(setSpendable);
+  }, [player?.id, debtState.inDebt]);
 
   // Most recent closed round that's unresolved on the current player's side:
   // either the winner hasn't picked yet, the winner hasn't collected yet, or
@@ -281,6 +312,7 @@ export default function HomeScreen() {
     coins: number;
     accent: string;
     side: 'left' | 'right' | 'center';
+    debuffed?: boolean;
   } | null>(null);
   const [firstStrikeBanner, setFirstStrikeBanner] = useState<{
     key: number;
@@ -326,6 +358,7 @@ export default function HomeScreen() {
       coins: row.coins_earned ?? 0,
       accent,
       side,
+      debuffed: debtState.debtMultiplier === 0.5,
     });
 
     // First-strike-of-day banner
@@ -511,6 +544,18 @@ export default function HomeScreen() {
                         ? debtForLoser
                         : null
                     }
+                    inDebt={
+                      p1 && player && p1.id === player.id
+                        ? debtState.inDebt
+                        : p1 && partnerPlayer && p1.id === partnerPlayer.id
+                          ? partnerDebtState.inDebt
+                          : false
+                    }
+                    onDebtPress={
+                      p1 && player && p1.id === player.id
+                        ? () => setModalFor('me')
+                        : () => setModalFor('partner')
+                    }
                   />
                 </View>
               </View>
@@ -543,6 +588,18 @@ export default function HomeScreen() {
                       p2 && debtForLoser && pendingRound?.loser_id === p2.id
                         ? debtForLoser
                         : null
+                    }
+                    inDebt={
+                      p2 && player && p2.id === player.id
+                        ? debtState.inDebt
+                        : p2 && partnerPlayer && p2.id === partnerPlayer.id
+                          ? partnerDebtState.inDebt
+                          : false
+                    }
+                    onDebtPress={
+                      p2 && player && p2.id === player.id
+                        ? () => setModalFor('me')
+                        : () => setModalFor('partner')
                     }
                   />
                 </View>
@@ -636,6 +693,7 @@ export default function HomeScreen() {
           openSignal={drawerSignal}
           view={drawerView}
           onViewChange={setDrawerView}
+          debtMultiplier={debtState.debtMultiplier}
         />
 
         {/* ============ INVITE CODE (only when no P2) ============ */}
@@ -644,6 +702,48 @@ export default function HomeScreen() {
 
       {/* ============ STRIKE EFFECTS OVERLAY ============ */}
       <StrikeProjectile burst={projectile} />
+
+      <DebtModal
+        visible={modalFor !== null}
+        onClose={() => setModalFor(null)}
+        debt={modalFor === 'partner' ? partnerDebtState : debtState}
+        viewerIsDebtor={modalFor === 'me'}
+        onPay={async (src) => {
+          if (src.kind === 'tribute') {
+            await markTributePaid(src.round_id);
+            void refetchDebt();
+          }
+          // Purchase redeems are handled via the shop queue; v1 punts on
+          // deep-linking and just closes the modal.
+          setModalFor(null);
+        }}
+        onAmnesty={async (src) => {
+          const { data } = await supabase
+            .from('shop_items')
+            .select('name, cost')
+            .eq('id', src.shop_item_id)
+            .single();
+          if (!data) return;
+          setAmnestyFor({
+            purchaseId: src.purchase_id,
+            itemName: data.name,
+            itemCost: data.cost,
+          });
+          setModalFor(null);
+        }}
+      />
+      <AmnestyConfirmModal
+        visible={amnestyFor !== null}
+        purchaseId={amnestyFor?.purchaseId ?? null}
+        itemName={amnestyFor?.itemName ?? ''}
+        itemCost={amnestyFor?.itemCost ?? 0}
+        spendable={spendable}
+        onClose={() => setAmnestyFor(null)}
+        onResolved={() => {
+          void refetchDebt();
+          if (player) void getSpendableCoins(player.id).then(setSpendable);
+        }}
+      />
 
       {/* First-strike-of-day banner */}
       {firstStrikeBanner && (

@@ -5,6 +5,7 @@ import { router, useFocusEffect } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import { AnimatePresence } from 'moti';
 
+import { AmnestyConfirmModal } from '@/components/game/AmnestyConfirmModal';
 import { ArsenalRow } from '@/components/game/ArsenalRow';
 import { PurchaseCard } from '@/components/game/PurchaseCard';
 import { QueueRow } from '@/components/game/QueueRow';
@@ -26,6 +27,7 @@ import { accentForCategory } from '@/lib/shop-format';
 import { pickShopkeepLine } from '@/lib/shopkeep-lines';
 import { useSession } from '@/lib/store';
 import { supabase } from '@/lib/supabase';
+import { useDebtState } from '@/lib/useDebtState';
 import { getSpendableCoins } from '@/lib/wallet';
 import type { Player, ShopCategory, ShopItem } from '@/lib/types';
 
@@ -62,6 +64,48 @@ export default function ShopScreen() {
   );
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const { state: debtState, refetch: refetchDebt } = useDebtState(
+    player?.id ?? null,
+    couple?.id ?? null
+  );
+  const [itemLookup, setItemLookup] = useState<
+    Record<string, { name: string; cost: number }>
+  >({});
+  const [amnestyFor, setAmnestyFor] = useState<{
+    purchaseId: string;
+    itemName: string;
+    itemCost: number;
+  } | null>(null);
+  const [spendable, setSpendable] = useState(0);
+
+  useEffect(() => {
+    if (!player?.id) return;
+    void getSpendableCoins(player.id).then(setSpendable);
+  }, [player?.id, debtState.inDebt]);
+
+  useEffect(() => {
+    const ids = debtState.sources
+      .filter((s): s is Extract<typeof s, { kind: 'purchase' }> => s.kind === 'purchase')
+      .map((s) => s.shop_item_id);
+    if (ids.length === 0) {
+      setItemLookup({});
+      return;
+    }
+    let cancelled = false;
+    void supabase
+      .from('shop_items')
+      .select('id, name, cost')
+      .in('id', ids)
+      .then(({ data }) => {
+        if (cancelled) return;
+        const map: Record<string, { name: string; cost: number }> = {};
+        for (const it of data ?? []) map[it.id] = { name: it.name, cost: it.cost };
+        setItemLookup(map);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [debtState.sources]);
 
   const reload = useCallback(async () => {
     if (!player || !couple) return;
@@ -248,6 +292,7 @@ export default function ShopScreen() {
           coins={coins}
           tokenCount={tokenCount}
           awaitingCount={awaiting.length}
+          inDebt={debtState.inDebt}
         />
         <AnimatePresence>
           <AffordabilityToast message={toastMessage} />
@@ -258,6 +303,97 @@ export default function ShopScreen() {
       {player && <Shopkeep line={shopkeepLine} />}
 
       <ScrollView contentContainerStyle={{ padding: SCREEN_PADDING }}>
+        {/* WHAT YOU OWE — purchase-token debts with PAY / AMNESTY actions */}
+        {debtState.sources.some((s) => s.kind === 'purchase') && (
+          <View style={{ paddingVertical: 12, gap: 8, marginBottom: 16 }}>
+            <SectionBanner label="⚖️ WHAT YOU OWE" color="#FF3333" fontSize={11} />
+            {debtState.sources
+              .filter(
+                (s): s is Extract<typeof s, { kind: 'purchase' }> =>
+                  s.kind === 'purchase'
+              )
+              .map((s) => {
+                const it = itemLookup[s.shop_item_id];
+                if (!it) return null;
+                const fee = Math.ceil(it.cost * 1.5);
+                const ageLabel =
+                  s.age_ms < 3600000
+                    ? 'JUST NOW'
+                    : s.age_ms < 86400000
+                    ? `${Math.floor(s.age_ms / 3600000)}H`
+                    : `${Math.floor(s.age_ms / 86400000)}D`;
+                return (
+                  <View
+                    key={s.purchase_id}
+                    style={{
+                      padding: 8,
+                      borderWidth: 2,
+                      borderColor: s.age_ms >= 86400000 ? '#FF3333' : '#4A4A4A',
+                      gap: 4,
+                    }}
+                  >
+                    <Text
+                      style={{
+                        fontFamily: 'PressStart2P',
+                        fontSize: 8,
+                        color: '#FFFFFF',
+                      }}
+                    >
+                      {it.name.toUpperCase()}
+                    </Text>
+                    <Text
+                      style={{
+                        fontFamily: 'PressStart2P',
+                        fontSize: 6,
+                        color: '#4A4A4A',
+                      }}
+                    >
+                      {ageLabel}
+                    </Text>
+                    <View style={{ flexDirection: 'row', gap: 8, marginTop: 4, alignItems: 'center' }}>
+                      {/* PAY deep-link deferred to v1.x; render a static hint
+                          instead of a tappable button that does nothing. */}
+                      <Text
+                        style={{
+                          fontFamily: 'PressStart2P',
+                          fontSize: 6,
+                          color: '#4A4A4A',
+                          letterSpacing: 1,
+                        }}
+                      >
+                        PAY VIA INCOMING ↓
+                      </Text>
+                      <Pressable
+                        onPress={() =>
+                          setAmnestyFor({
+                            purchaseId: s.purchase_id,
+                            itemName: it.name,
+                            itemCost: it.cost,
+                          })
+                        }
+                        style={{
+                          backgroundColor: '#FFA63F',
+                          paddingHorizontal: 10,
+                          paddingVertical: 4,
+                        }}
+                      >
+                        <Text
+                          style={{
+                            fontFamily: 'PressStart2P',
+                            fontSize: 7,
+                            color: '#000',
+                          }}
+                        >
+                          AMNESTY · {fee}¢
+                        </Text>
+                      </Pressable>
+                    </View>
+                  </View>
+                );
+              })}
+          </View>
+        )}
+
         {/* ARSENAL */}
         {(pendingStacks.length > 0 || awaiting.length > 0) && (
           <View style={{ marginBottom: 24 }}>
@@ -375,6 +511,19 @@ export default function ShopScreen() {
 
         <View style={{ height: 60 }} />
       </ScrollView>
+
+      <AmnestyConfirmModal
+        visible={amnestyFor !== null}
+        purchaseId={amnestyFor?.purchaseId ?? null}
+        itemName={amnestyFor?.itemName ?? ''}
+        itemCost={amnestyFor?.itemCost ?? 0}
+        spendable={spendable}
+        onClose={() => setAmnestyFor(null)}
+        onResolved={() => {
+          void refetchDebt();
+          if (player?.id) void getSpendableCoins(player.id).then(setSpendable);
+        }}
+      />
     </SafeAreaView>
   );
 }

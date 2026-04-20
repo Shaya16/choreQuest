@@ -12,6 +12,8 @@ type Props = {
   accentHex: string;
   onStrike: () => void;
   strikeFlashKey: number;
+  /** 0.5 when the player is in debt — strikethrough preview + DEBT label. */
+  debtMultiplier?: 1.0 | 0.5;
 };
 
 /**
@@ -28,9 +30,13 @@ export function MoveCard({
   accentHex,
   onStrike,
   strikeFlashKey,
+  debtMultiplier = 1.0,
 }: Props) {
   const depleted = usesLeft <= 0;
   const shopCoins = (activity.base_value ?? 0) + (activity.bonus ?? 0);
+  const previewFull = shopCoins;
+  const previewActual = Math.max(0, Math.floor(shopCoins * debtMultiplier));
+  const isDebuffed = debtMultiplier === 0.5;
   const roundPts = activity.round_value ?? 0;
   const isChore = roundPts > 0;
   const isBonusMove = (activity.bonus ?? 0) > 0;
@@ -41,12 +47,12 @@ export function MoveCard({
   useEffect(() => {
     if (strikeFlashKey !== lastKey.current) {
       lastKey.current = strikeFlashKey;
-      setFlashDamage(shopCoins);
+      setFlashDamage(previewActual);
       const t = setTimeout(() => setFlashDamage(null), 900);
       return () => clearTimeout(t);
     }
     return undefined;
-  }, [strikeFlashKey, shopCoins]);
+  }, [strikeFlashKey, previewActual]);
 
   return (
     <Pressable
@@ -135,38 +141,122 @@ export function MoveCard({
                         style={{ width: 12, height: 12, opacity: depleted ? 0.45 : 1 }}
                         resizeMode="contain"
                       />
+                      {isDebuffed && !depleted ? (
+                        <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 3 }}>
+                          <Text
+                            numberOfLines={1}
+                            style={{
+                              fontFamily: 'PressStart2P',
+                              color: '#4A4A4A',
+                              fontSize: 12,
+                              textDecorationLine: 'line-through',
+                            }}
+                          >
+                            +{previewFull}
+                          </Text>
+                          <Text
+                            numberOfLines={1}
+                            style={{
+                              fontFamily: 'PressStart2P',
+                              color: '#FFCC00',
+                              fontSize: 12,
+                            }}
+                          >
+                            +{previewActual}
+                          </Text>
+                        </View>
+                      ) : (
+                        <Text
+                          numberOfLines={1}
+                          style={{
+                            fontFamily: 'PressStart2P',
+                            color: depleted ? '#4A4A4A' : '#FFCC00',
+                            fontSize: 12,
+                          }}
+                        >
+                          +{previewActual}
+                        </Text>
+                      )}
+                    </View>
+                    {isDebuffed && !depleted && (
                       <Text
-                        numberOfLines={1}
                         style={{
                           fontFamily: 'PressStart2P',
-                          color: depleted ? '#4A4A4A' : '#FFCC00',
-                          fontSize: 12,
+                          fontSize: 6,
+                          color: '#FF3333',
+                          letterSpacing: 1,
+                          marginTop: 2,
                         }}
                       >
-                        +{shopCoins}
+                        DEBT · HALF PAY
                       </Text>
-                    </View>
+                    )}
                   </>
                 ) : (
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                    <Image
-                      source={COIN_SPRITE}
-                      style={{ width: 16, height: 16, opacity: depleted ? 0.45 : 1 }}
-                      resizeMode="contain"
-                    />
-                    <Text
-                      numberOfLines={1}
-                      adjustsFontSizeToFit
-                      minimumFontScale={0.7}
-                      style={{
-                        fontFamily: 'PressStart2P',
-                        color: depleted ? '#4A4A4A' : '#FFCC00',
-                        fontSize: 18,
-                      }}
-                    >
-                      +{shopCoins}
-                    </Text>
-                  </View>
+                  <>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                      <Image
+                        source={COIN_SPRITE}
+                        style={{ width: 16, height: 16, opacity: depleted ? 0.45 : 1 }}
+                        resizeMode="contain"
+                      />
+                      {isDebuffed && !depleted ? (
+                        <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 3 }}>
+                          <Text
+                            numberOfLines={1}
+                            adjustsFontSizeToFit
+                            minimumFontScale={0.7}
+                            style={{
+                              fontFamily: 'PressStart2P',
+                              color: '#4A4A4A',
+                              fontSize: 14,
+                              textDecorationLine: 'line-through',
+                            }}
+                          >
+                            +{previewFull}
+                          </Text>
+                          <Text
+                            numberOfLines={1}
+                            adjustsFontSizeToFit
+                            minimumFontScale={0.7}
+                            style={{
+                              fontFamily: 'PressStart2P',
+                              color: '#FFCC00',
+                              fontSize: 14,
+                            }}
+                          >
+                            +{previewActual}
+                          </Text>
+                        </View>
+                      ) : (
+                        <Text
+                          numberOfLines={1}
+                          adjustsFontSizeToFit
+                          minimumFontScale={0.7}
+                          style={{
+                            fontFamily: 'PressStart2P',
+                            color: depleted ? '#4A4A4A' : '#FFCC00',
+                            fontSize: 18,
+                          }}
+                        >
+                          +{previewActual}
+                        </Text>
+                      )}
+                    </View>
+                    {isDebuffed && !depleted && (
+                      <Text
+                        style={{
+                          fontFamily: 'PressStart2P',
+                          fontSize: 6,
+                          color: '#FF3333',
+                          letterSpacing: 1,
+                          marginTop: 3,
+                        }}
+                      >
+                        DEBT · HALF PAY
+                      </Text>
+                    )}
+                  </>
                 )}
               </View>
 
