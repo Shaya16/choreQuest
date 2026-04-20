@@ -44,7 +44,8 @@ const EMPTY_GROUPS: Record<World, Activity[]> = {
  */
 export function useStrikeSelect(
   player: Player | null,
-  couple: Couple | null
+  couple: Couple | null,
+  debtMultiplier: 1.0 | 0.5 = 1.0
 ): StrikeSelect {
   const cachedActivities = useSession((s) => s.activities);
 
@@ -157,7 +158,7 @@ export function useStrikeSelect(
         [activity.id]: used + 1,
       }));
 
-      const row = await createLog({ activity, player, roundId });
+      const row = await createLog({ activity, player, roundId, debtMultiplier });
 
       if (!row) {
         // Rollback on failure.
@@ -176,7 +177,7 @@ export function useStrikeSelect(
       // haul is updated via realtime subscription, no local bump needed here
       return row;
     },
-    [player, roundId, todayCounts]
+    [player, roundId, todayCounts, debtMultiplier]
   );
 
   return {

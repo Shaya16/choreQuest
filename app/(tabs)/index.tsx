@@ -15,6 +15,7 @@ import { StrikeProjectile } from '@/components/game/StrikeProjectile';
 import { formatCountdown } from '@/lib/round';
 import { useRoundView } from '@/lib/useRoundView';
 import { useStrikeSelect } from '@/lib/useStrikeSelect';
+import { useDebtState } from '@/lib/useDebtState';
 import { useSession } from '@/lib/store';
 import { supabase } from '@/lib/supabase';
 import { WORLD_META } from '@/lib/worlds';
@@ -164,7 +165,8 @@ export default function HomeScreen() {
   const player = useSession((s) => s.player);
   const couple = useSession((s) => s.couple);
   const view = useRoundView(couple);
-  const strike = useStrikeSelect(player, couple);
+  const { state: debtState } = useDebtState(player?.id ?? null, couple?.id ?? null);
+  const strike = useStrikeSelect(player, couple, debtState.debtMultiplier);
 
   const { p1, p2, stats, round, countdownSeconds, lastEvent } = view;
 
@@ -618,6 +620,7 @@ export default function HomeScreen() {
           onStrike={(a) => void handleStrike(a)}
           strikeFlashMap={strikeFlashMap}
           openSignal={drawerSignal}
+          debtMultiplier={debtState.debtMultiplier}
         />
 
         {/* ============ INVITE CODE (only when no P2) ============ */}
